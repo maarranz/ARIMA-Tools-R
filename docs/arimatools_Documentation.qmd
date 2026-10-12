@@ -1,0 +1,269 @@
+---
+title: 'arimatools (R): Public API'
+subtitle: Software reference for Applied Time Series Econometrics (ATSE)
+author: Miguel A. Arranz, PhD
+affiliation: Department of Economics, Universidad Carlos III de Madrid (UC3M)
+email: maarranz@eco.uc3m.es
+orcid: https://orcid.org/0000-0002-5951-2284
+lang: en
+minimal: true
+header-includes:
+- |
+  <style>
+  html { scroll-behavior: smooth; }
+  body { max-width: 980px; margin: 48px auto; padding: 0 24px; color: #263442;
+         font: 16px/1.6 system-ui, sans-serif; }
+  h1,h2,h3 { line-height: 1.25; color: #173e63; }
+  h2 { margin-top: 2.4rem; border-bottom: 1px solid #dbe3ea; padding-bottom: .4rem; }
+  a { color: #145b91; text-underline-offset: 3px; }
+  pre { background: #f3f6f8; border: 1px solid #dbe3ea; border-radius: 6px;
+        padding: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  code { font-family: ui-monospace, monospace; font-size: .88em; }
+  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+  th,td { padding: 10px 12px; text-align: left; vertical-align: top;
+          border-bottom: 1px solid #dbe3ea; }
+  th { background: #edf3f8; }
+  td:first-child { width: 65%; }
+  table code { white-space: normal; overflow-wrap: anywhere; }
+  #TOC { background: #f3f6f8; padding: 16px 24px; border-radius: 6px; }
+  @media (max-width: 600px) { body { margin: 24px auto; padding: 0 16px; }
+    table { font-size: .76rem; } th,td { padding: 8px; } }
+  table { font-size: 0.88rem; }
+  </style>
+format:
+  html:
+    output-file: index.html
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    theme: none
+    code-overflow: wrap
+---
+
+
+## Overview and purpose
+
+`arimatools` is the R port of the Python package [ARIMA-Tools](https://github.com/maarranz/ARIMA-Tools), developed for the **Applied Time Series Econometrics (ATSE)** course at **Universidad Carlos III de Madrid**. It complements `forecast` and `stats` with teaching-oriented tables, summaries, numerical forecasts, and figures.
+
+This document describes the software/API. The ATSE course material provides the econometric theory; the Labs provide fuller worked examples and exercises. The package exposes the same **26 public functions** as the Python version, with the same names. Models are fitted with `forecast::Arima()` (recommended), `forecast::auto.arima()` or `stats::arima()`, and every function that takes a fitted model accepts any of the three — including the output of `auto_arima()`, which in Python was a separate StatsForecast object.
+
+Diagnostics have three layers: parameters and model structure, residual behavior, and model behavior (dynamics and parameter stability).
+
+### What R already provides
+
+Several Python functions exist because Statsmodels lacks them. In R some have close equivalents, which the package wraps so that the API, tables and defaults stay the same as in Python:
+
+| arimatools | Closest existing R tool | Why the wrapper is kept |
+|:--|:--|:--|
+| `coefficient_diagnostics()` | `lmtest::coeftest()`, `confint()` | One table with intervals |
+| `parameter_correlation()` | `cov2cor(vcov(fit))` | Same name as Python |
+| `ljung_box_test()` | `Box.test(..., fitdf = p + q)` | Several lags, df check |
+| `plot_residual_diagnostics()` | `forecast::checkresiduals()`, `tsdiag()` | ACF + PACF + LB p-values; `tsdiag()` does not adjust df |
+| `jarque_bera_test()` | `tseries::jarque.bera.test()` | Adds skewness and kurtosis |
+| `dynamic_effects()` | `ARMAtoMA()` | Includes the differencing polynomial |
+| `plot_inverse_roots()` | `autoplot(fit)` | Common-root markers |
+| `auto_arima()` | `forecast::auto.arima()` | Course defaults (BIC, nonseasonal, no approximation) |
+| `order_search()` | `auto.arima(..., trace = TRUE)` | Returns the full table |
+| `plot_fan_chart()` | `autoplot(forecast(fit))`, `fanplot` | Psi-weight intervals, nested bands |
+
+Root and common-root checks, the Wald test, recursive estimation and parameter-stability plots, model-comparison tables with HQIC, and the psi-weight forecast-error variance have no direct R counterpart.
+
+## Installation and loading
+
+```r
+# install.packages("remotes")
+remotes::install_github("maarranz/ARIMA-Tools-R")
+```
+
+Dependencies (`forecast`, `ggplot2`, `patchwork`, `zoo`) are installed automatically. `plotly` is optional and only needed for `interactive = TRUE`.
+
+```r
+library(forecast)
+library(arimatools)
+```
+
+### Small example used below
+
+The data-generating process is a zero-mean ARMA(1,1), `y[t] = 0.7*y[t-1] + eps[t] + 0.4*eps[t-1]`, with standard-normal innovations, stored as a monthly `ts` starting in January 2000. (R's random-number generator differs from NumPy's, so the series is not the one in the Python documentation.)
+
+```r
+set.seed(12345)
+y <- ts(arima.sim(list(ar = 0.7, ma = 0.4), n = 240, n.start = 100),
+        start = c(2000, 1), frequency = 12)
+fit <- Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+```
+
+Run the blocks below in sequence in the same session. Tables are data frames that follow R/broom column conventions (`term`, `estimate`, `std.error`, `statistic`, `p.value`, `conf.low`, `conf.high`). Single-result tests and summaries are named lists that print as two columns; `as.data.frame()` turns them into tables (e.g. for `knitr::kable()`). Plotting functions return `ggplot2` objects (or `patchwork` objects for stacked panels), which can be modified with the usual `+` syntax; `interactive = TRUE` returns a `plotly` widget instead.
+
+## Estimation and parameter diagnostics
+
+Fit models with `forecast::Arima()`. `coefficient_diagnostics()` returns estimates, standard errors, z-statistics, asymptotic p-values, and confidence intervals (`confidence = 0.95`). `parameter_correlation()` returns the correlation matrix of the estimates. `joint_significance()` takes coefficient names and returns a joint Wald test against zero.
+
+```r
+coefficients <- coefficient_diagnostics(fit)
+correlations <- parameter_correlation(fit)
+joint_test <- joint_significance(fit, parameters = c("ar1", "ma1"))
+print(coefficients, digits = 4)
+```
+
+Coefficient names follow R: `ar1`, `ma2`, `sar1`, `intercept`, `drift` (Python: `ar.L1`, `ma.L2`, `const`, ...); see `names(coef(fit))`. R does not estimate a covariance for `sigma2`, so it never appears in the correlation matrix (Python's `include_variance` argument has no R equivalent). Standard errors come from the Hessian, which corresponds to `cov_type = "approx"` in Statsmodels; Statsmodels' default is the outer product of gradients, so its standard errors differ slightly.
+
+## Model diagnostics
+
+### Parameters and model structure
+
+`root_diagnostics()` tabulates AR/MA roots, moduli, and inverses (seasonal models use the multiplied polynomials). `is_causal()` and `is_invertible()` return `TRUE`/`FALSE`; `root_summary()` combines the root checks. Causality refers to the stationary AR component, not the level stationarity of an integrated series.
+
+`common_roots()` reports AR–MA pairs within inverse-root distance `tol = 0.05`; `exact_tol = 1e-10` separates numerically common from near-common pairs. `plot_inverse_roots()` draws the inverse roots and the unit circle, marking such pairs with a cross.
+
+```r
+roots <- root_diagnostics(fit)
+causal <- is_causal(fit)
+invertible <- is_invertible(fit)
+common <- common_roots(fit)
+root_checks <- root_summary(fit)
+root_plot <- plot_inverse_roots(fit)
+```
+
+### Residual behavior
+
+`ljung_box_test()` requires lags greater than `p + q` (plus `P + Q` in seasonal models) and reports adjusted degrees of freedom and p-values. `residual_correlations()` returns residual ACF/PACF values and approximate individual white-noise bounds; these bounds are not a joint test.
+
+`jarque_bera_test()` returns the normality statistic, p-value, skewness, and conventional kurtosis. `plot_residual_diagnostics()` stacks residuals, ACF, PACF, and valid-lag Ljung–Box p-values in four panels.
+
+```r
+ljung_box <- ljung_box_test(fit, lags = c(5, 10, 20))
+residual_acf_pacf <- residual_correlations(fit, lags = 20)
+normality <- jarque_bera_test(fit)
+residual_plot <- plot_residual_diagnostics(fit, lags = 20)
+```
+
+R's `residuals()` are standardized innovations, which differ from Statsmodels' raw one-step errors in the first few observations; Ljung–Box and Jarque–Bera statistics can therefore differ slightly between the two packages on the same model.
+
+## Model comparison and selection
+
+`compare_models()` accepts at least two fitted models, labelled by their order, by argument names (`compare_models(a = fit1, b = fit2)`) or by `names`. Its table includes the log likelihood, AIC, AICc, BIC, and HQIC, with k counting the innovation variance. Compare models for the same dependent variable and sample.
+
+`order_search()` estimates every order from zero to `p_max`/`q_max`, and differencing orders from `d_min` through `d_max` (both default to zero). `criterion` sorts the table; convergence status is retained. If the default CSS-ML estimation fails for a candidate, exact ML is tried and the status says so. `select_model()` returns the eligible row minimizing AIC, AICc, BIC, or HQIC, excluding non-converged models. Selection is not a diagnostic assessment.
+
+```r
+alternative <- Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+comparison <- compare_models(fit, alternative, names = c("ARMA(1,1)", "AR(1)"))
+search <- order_search(y, p_max = 2, q_max = 2, criterion = "BIC",
+                       include.constant = FALSE)
+selected <- select_model(search, criterion = "BIC")
+print(selected)
+```
+
+Deterministic terms are set with `include.constant` (passed to `forecast::Arima()`): `NULL` keeps forecast's default (a mean when d = 0, nothing when d > 0, matching Statsmodels' default `trend`); `TRUE` gives a mean when d = 0 and a drift when d = 1; `FALSE` none. Other `forecast::Arima()` arguments, such as `method = "ML"`, can be passed through `...`.
+
+`auto_arima()` calls `forecast::auto.arima()` — the original Hyndman–Khandakar implementation that StatsForecast ports — with the course defaults: nonseasonal, BIC, and no CSS approximation. It returns an ordinary `Arima` object that every other function accepts. `auto_arima_summary()` returns a compact summary, including its mean/drift interpretation.
+
+```r
+automatic <- auto_arima(y, criterion = "BIC", max_p = 2, max_q = 2)
+automatic_summary <- auto_arima_summary(automatic)
+automatic_roots <- root_summary(automatic)
+```
+
+## Dynamic effects and parameter stability
+
+`dynamic_effects()` returns the psi weights of the fitted model and their cumulative sums, from horizon zero through `horizon = 20`. The differencing polynomial (ordinary and seasonal) is included, so a fitted random walk has a unit response at every horizon. `plot_dynamic_effects()` plots both series.
+
+`recursive_estimation()` takes the original series and an order `c(p, d, q)` and returns a long expanding-window table with estimates, standard errors, intervals, sample endpoints, and convergence status, plus the recursive innovation variance (`sigma2`, without interval). `initial` can be an observation count, a fraction between zero and one, or `NULL` (an automatic 10% rule subject to `min_df = 20`). Endpoints are dates for monthly, quarterly and annual `ts` objects and observation numbers for plain vectors.
+
+```r
+effects <- dynamic_effects(fit, horizon = 12)
+effects_plot <- plot_dynamic_effects(fit, horizon = 12)
+recursive <- recursive_estimation(y, order = c(1, 0, 1), initial = 220,
+                                  include.constant = FALSE)
+stability_plot <- plot_parameter_stability(recursive, parameters = c("ar1", "ma1"),
+                                           breakpoint = as.Date("2019-01-01"))
+```
+
+`plot_parameter_stability()` takes the recursive table. `parameters = NULL` displays all coefficients except `sigma2`. `reference = TRUE` adds full-sample estimates. An optional `breakpoint` (on the endpoint scale: a `Date` or an observation number) is only a graphical marker; it is not a structural-break test.
+
+## Forecasting
+
+All four functions take a fitted model. `steps = 20` is a positive integer, and `level = 0.95` is a central normal-theory prediction-interval coverage strictly between zero and one.
+
+- `forecast_error_variance()` returns a numeric vector for horizons 1 through `steps`, computed from the full ARIMA psi weights, including ordinary/seasonal integration, on the original scale.
+- `dynamic_forecast()` returns a data frame with `horizon`, `forecast`, `fev`, `se`, `lower` and `upper`. Point forecasts come from `forecast::forecast()`; uncertainty from the psi-weight FEV.
+- `plot_forecast()` draws the observed series, the forecast, two **unfilled interval boundary lines**, and a forecast-origin marker.
+- `plot_fan_chart()` draws nested shaded central intervals, stronger centrally and fading outward, and the point forecast.
+
+```r
+fev <- forecast_error_variance(fit, steps = 20)
+fc <- dynamic_forecast(fit, steps = 20, level = 0.95)
+forecast_plot <- plot_forecast(fit, steps = 20, level = 0.95, history = 50)
+fan_plot <- plot_fan_chart(fit, steps = 20, history = 50)
+print(head(fc), digits = 4)
+```
+
+The default fan levels are **`c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99)`**; custom levels must be distinct and strictly between zero and one, in any order. `history = 50` shows the final 50 observations and `history = NULL` the whole sample.
+
+```r
+custom_fan <- plot_fan_chart(fit, steps = 12, levels = c(0.95, 0.50, 0.80),
+                             history = NULL)
+```
+
+FEV treats fitted parameters and past innovations as known, so parameter-estimation uncertainty is not included, and the exact Kalman-filter variances of `predict()` can differ slightly in short samples. The innovation variance is `fit$sigma2`: `forecast::Arima()` reports the degrees-of-freedom-adjusted SSR / (n − number of coefficients), whereas `stats::arima()` and Statsmodels report the ML estimate SSR / n. Using `fit$sigma2` keeps these intervals consistent with `forecast(fit)` for the same object. Models with external regressors other than drift are outside the forecasting interface.
+
+## Compact API summary
+
+`fit` is a model from `forecast::Arima()`, `forecast::auto.arima()` or `stats::arima()`. Plot functions accept `interactive = TRUE` (plotly); figure size is controlled by the chunk options (`fig-width`, `fig-height`) rather than by arguments.
+
+| Public call | Return / contents |
+|:--|:--|
+| `root_diagnostics(fit)` | data frame: AR/MA roots and inverses |
+| `is_causal(fit, tol = 1e-10)` | logical: AR causality |
+| `is_invertible(fit, tol = 1e-10)` | logical: MA invertibility |
+| `common_roots(fit, tol = 0.05, exact_tol = 1e-10)` | data frame: common/near-common root pairs |
+| `plot_inverse_roots(fit, tol = 0.05, exact_tol = 1e-10, title = "Inverse Roots", interactive = FALSE)` | ggplot: inverse roots |
+| `root_summary(fit, tol = 0.05, exact_tol = 1e-10)` | summary list: root checks |
+| `coefficient_diagnostics(fit, confidence = 0.95)` | data frame: estimates and inference |
+| `parameter_correlation(fit)` | matrix: parameter correlations |
+| `joint_significance(fit, parameters)` | summary list: joint Wald test |
+| `ljung_box_test(fit, lags)` | data frame: adjusted Ljung–Box tests |
+| `residual_correlations(fit, lags = 20, confidence = 0.95)` | data frame: residual ACF/PACF and bounds |
+| `plot_residual_diagnostics(fit, lags = 20, confidence = 0.95, title = "Residual Diagnostics", interactive = FALSE)` | patchwork: four residual panels |
+| `jarque_bera_test(fit)` | summary list: normality test and moments |
+| `dynamic_effects(fit, horizon = 20)` | data frame: effects and cumulative effects |
+| `plot_dynamic_effects(fit, horizon = 20, title = "Dynamic Effects of an Innovation", interactive = FALSE)` | patchwork: effects and cumulative effects |
+| `compare_models(..., names = NULL)` | data frame: likelihood and information criteria |
+| `select_model(table, criterion = "BIC")` | one-row data frame: selected model |
+| `order_search(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0, criterion = "BIC", include.constant = NULL, ...)` | data frame: candidate orders and fit status |
+| `auto_arima(y, criterion = "BIC", d = NULL, max_p = 5, max_q = 5, stepwise = TRUE, allow_mean = TRUE, allow_drift = TRUE, approximation = FALSE, ...)` | fitted `Arima` object |
+| `recursive_estimation(y, order, initial = NULL, min_df = 20, confidence = 0.95, include.constant = NULL, ...)` | data frame: recursive estimates and fit status |
+| `plot_parameter_stability(recursive, parameters = NULL, reference = TRUE, breakpoint = NULL, title = "Recursive Parameter Stability", interactive = FALSE)` | ggplot: recursive estimates and intervals |
+| `auto_arima_summary(model)` | summary list: selected model |
+| `forecast_error_variance(fit, steps = 20)` | numeric vector: forecast-error variances |
+| `dynamic_forecast(fit, steps = 20, level = 0.95)` | data frame: forecast, fev, se, lower, upper |
+| `plot_forecast(fit, steps = 20, level = 0.95, history = 50, interactive = FALSE)` | ggplot: forecast and unfilled interval lines |
+| `plot_fan_chart(fit, steps = 20, levels = c(0.5, 0.7, 0.8, 0.9, 0.95, 0.99), history = 50, interactive = FALSE)` | ggplot: forecast and nested shaded intervals |
+
+Full argument documentation is available in R with `?function_name` (e.g. `?recursive_estimation`).
+
+## Course, resources, and author
+
+**ATSE course material and Labs — Universidad Carlos III de Madrid:** public link to be added when available. The course material supplies theory; the Labs supply fuller examples and exercises. This API reference is not a substitute for either.
+
+- [Repository and README](https://github.com/maarranz/ARIMA-Tools-R)
+- [Python version: ARIMA-Tools](https://github.com/maarranz/ARIMA-Tools)
+- [MIT License](https://github.com/maarranz/ARIMA-Tools-R/blob/main/LICENSE)
+- [Quarto source](arimatools_Documentation.qmd)
+
+**Miguel A. Arranz, PhD**\
+Department of Economics\
+Universidad Carlos III de Madrid (UC3M)\
+Email: [maarranz@eco.uc3m.es](mailto:maarranz@eco.uc3m.es)\
+ORCID: [0000-0002-5951-2284](https://orcid.org/0000-0002-5951-2284)
+
+### Rebuilding the HTML
+
+The examples are ordinary R code blocks, validated in a fresh session rather than executed during rendering. With Quarto installed:
+
+```bash
+quarto pandoc docs/arimatools_Documentation.qmd \
+  --from markdown --to html5 --standalone --toc --toc-depth=2 \
+  --embed-resources -o docs/index.html
+```

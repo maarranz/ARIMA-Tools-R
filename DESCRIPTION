@@ -1,0 +1,29 @@
+Package: arimatools
+Type: Package
+Title: Teaching-Oriented Tools for Empirical ARIMA Modelling
+Version: 0.2.0
+Authors@R: person("Miguel A.", "Arranz", email = "maarranz@eco.uc3m.es",
+    role = c("aut", "cre"), comment = c(ORCID = "0000-0002-5951-2284"))
+Description: Tables, summaries, numerical forecasts and figures for empirical
+    ARIMA modelling, developed for Applied Time Series Econometrics (ATSE) at
+    Universidad Carlos III de Madrid. R port of the Python package ARIMA-Tools.
+    Complements 'forecast' and 'stats' with root and common-root diagnostics,
+    coefficient inference, residual diagnostics, dynamic effects, recursive
+    parameter stability, transparent order searches, psi-weight forecast-error
+    variances and fan charts.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports:
+    forecast (>= 8.21),
+    ggplot2 (>= 3.4.0),
+    patchwork,
+    stats,
+    utils,
+    zoo
+Suggests:
+    plotly,
+    lmtest,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+RoxygenNote: 7.3.2

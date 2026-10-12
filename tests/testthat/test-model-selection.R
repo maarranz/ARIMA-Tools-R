@@ -1,0 +1,41 @@
+set.seed(1357)
+y <- arima.sim(list(ar = c(1.2, -0.5)), n = 400)
+f1 <- forecast::Arima(y, order = c(2, 0, 0))
+f2 <- forecast::Arima(y, order = c(1, 0, 1))
+
+test_that("information criteria agree with forecast::Arima", {
+  cm <- compare_models(f1, f2)
+  expect_equal(cm$AIC, c(f1$aic, f2$aic))
+  expect_equal(cm$AICc, c(f1$aicc, f2$aicc))
+  expect_equal(cm$BIC, c(f1$bic, f2$bic))
+  expect_equal(cm$k, c(4L, 4L))
+  expect_equal(rownames(cm), c("ARIMA(2,0,0)", "ARIMA(1,0,1)"))
+  expect_equal(compare_models(a = f1, b = f2)$model, c("a", "b"))
+  expect_error(compare_models(f1), "At least two")
+  expect_error(compare_models(f1, f1), "unique")
+})
+
+test_that("order search covers the grid and is sorted", {
+  s <- order_search(y, p_max = 2, q_max = 2, d_min = 0, d_max = 1, criterion = "aic")
+  expect_equal(nrow(s), 18L)
+  ok <- s[s$converged, ]
+  expect_false(is.unsorted(ok$AIC))
+  best <- select_model(s, "AIC")
+  expect_equal(best$AIC, min(ok$AIC))
+  expect_equal(attr(s, "criterion"), "AIC")
+  expect_error(order_search(y, criterion = "foo"), "criterion")
+  expect_error(order_search(y, d_min = 2, d_max = 1), "d_min")
+})
+
+test_that("auto_arima is nonseasonal, BIC-based and summarized", {
+  a <- auto_arima(y)
+  expect_s3_class(a, "Arima")
+  expect_equal(attr(a, "ic"), "BIC")
+  s <- auto_arima_summary(a)
+  expect_equal(s[["Criterion value"]], a$bic)
+  expect_match(s[["Selected model"]], "^ARIMA\\(")
+  set.seed(24680)
+  yd <- cumsum(0.4 + rnorm(300))
+  sd <- auto_arima_summary(auto_arima(yd))
+  expect_equal(sd[["Deterministic component"]], "Drift")
+})
