@@ -45,7 +45,7 @@ format:
 
 `arimatools` is the R port of the Python package [ARIMA-Tools](https://github.com/maarranz/ARIMA-Tools), developed for the **Applied Time Series Econometrics (ATSE)** course at **Universidad Carlos III de Madrid**. It complements `forecast` and `stats` with teaching-oriented tables, summaries, numerical forecasts, and figures.
 
-This document describes the software/API. The ATSE course material provides the econometric theory; the Labs provide fuller worked examples and exercises. The package exposes the same **26 public functions** as the Python version, with the same names. Models are fitted with `forecast::Arima()` (recommended), `forecast::auto.arima()` or `stats::arima()`, and every function that takes a fitted model accepts any of the three — including the output of `auto_arima()`, which in Python was a separate StatsForecast object.
+This document describes the software/API. The ATSE course material provides the econometric theory; the Labs provide fuller worked examples and exercises. The package exposes the same **26 public functions** as the Python version, with the same names, plus three outlier functions that are R-only for now. Models are fitted with `forecast::Arima()` (recommended), `forecast::auto.arima()` or `stats::arima()`, and every function that takes a fitted model accepts any of the three — including the output of `auto_arima()`, which in Python was a separate StatsForecast object.
 
 Diagnostics have three layers: parameters and model structure, residual behavior, and model behavior (dynamics and parameter stability).
 
@@ -75,7 +75,7 @@ Root and common-root checks, the Wald test, recursive estimation and parameter-s
 remotes::install_github("maarranz/ARIMA-Tools-R")
 ```
 
-Dependencies (`forecast`, `ggplot2`, `patchwork`, `zoo`) are installed automatically. `plotly` is optional and only needed for `interactive = TRUE`.
+Dependencies (`forecast`, `ggplot2`, `patchwork`, `zoo`) are installed automatically. `plotly` is optional and only needed for `interactive = TRUE`; `tsoutliers` is needed only for `detect_outliers()`.
 
 ```r
 library(forecast)
@@ -208,6 +208,38 @@ custom_fan <- plot_fan_chart(fit, steps = 12, levels = c(0.95, 0.50, 0.80),
 
 FEV treats fitted parameters and past innovations as known, so parameter-estimation uncertainty is not included, and the exact Kalman-filter variances of `predict()` can differ slightly in short samples. The innovation variance is `fit$sigma2`: `forecast::Arima()` reports the degrees-of-freedom-adjusted SSR / (n − number of coefficients), whereas `stats::arima()` and Statsmodels report the ML estimate SSR / n. Using `fit$sigma2` keeps these intervals consistent with `forecast(fit)` for the same object. Models with external regressors other than drift are outside the forecasting interface.
 
+## Outliers
+
+Three outlier types are supported, for nonseasonal models: an **additive outlier** (AO) is 1 at its date and 0 elsewhere; a **level shift** (LS) is 1 from its date onwards; a **temporary change** (TC) is `delta^(t - t0)` from its date onwards (`delta = 0.7` by default).
+
+`outlier_regressors()` builds these regressors for dates you choose, for example from known historical events, to pass as `xreg`. Dates can be written `"2020Q2"`, `"2020:2"`, `"2008M09"`, `"2008-09-01"`, as `Date` objects, or as observation numbers through `positions`. Columns are named by type and period (`AO2020Q2`), so the usual tables and tests identify them.
+
+```r
+X <- outlier_regressors(y, dates = c("2008M09", "2016M03"), types = c("LS", "AO"))
+fit_dummies <- Arima(y, order = c(1, 0, 1), include.mean = FALSE, xreg = X)
+dummy_table <- coefficient_diagnostics(fit_dummies)
+dummy_test <- joint_significance(fit_dummies, colnames(X))
+```
+
+`detect_outliers()` runs the Chen–Liu (1993) procedure through `tsoutliers::tso()` and re-estimates the final model with `forecast::Arima()` and regressors from `outlier_regressors()`. The model can be a fitted nonseasonal model (order and mean or drift kept fixed), a series with `order = c(p, d, q)`, or a series alone, in which case auto.arima chooses the order (BIC, nonseasonal). The critical value `cval` follows the tsoutliers rule (3 for n ≤ 50, 4 for n ≥ 450, linear in between) unless given. The result prints a dated table of outliers and contains the final model (`$fit`), the regressors, the combined effect and the adjusted series.
+
+```r
+detected <- detect_outliers(fit)
+detected$outliers
+diagnostics_after <- ljung_box_test(detected$fit, lags = c(8, 12))
+comparison_outliers <- compare_models(fit, detected$fit,
+                                      names = c("No outliers", "Outliers"))
+```
+
+`plot_outliers()` draws the observed and outlier-adjusted series, with outlier dates marked by type, and the combined outlier effect. It accepts the output of `detect_outliers()` or any model fitted with regressors from `outlier_regressors()`, so automatic and hand-picked outliers can be shown side by side.
+
+```r
+outlier_plot <- plot_outliers(detected)
+dummy_plot <- plot_outliers(fit_dummies, title = "Hand-picked outliers")
+```
+
+Detection currently uses tsoutliers; the arguments and output are defined independently of it so that the algorithm can later be replaced without changing code that uses these functions. Forecasting models with outlier regressors is not supported yet.
+
 ## Compact API summary
 
 `fit` is a model from `forecast::Arima()`, `forecast::auto.arima()` or `stats::arima()`. Plot functions accept `interactive = TRUE` (plotly); figure size is controlled by the chunk options (`fig-width`, `fig-height`) rather than by arguments.
@@ -240,6 +272,9 @@ FEV treats fitted parameters and past innovations as known, so parameter-estimat
 | `dynamic_forecast(fit, steps = 20, level = 0.95)` | data frame: forecast, fev, se, lower, upper |
 | `plot_forecast(fit, steps = 20, level = 0.95, history = 50, interactive = FALSE)` | ggplot: forecast and unfilled interval lines |
 | `plot_fan_chart(fit, steps = 20, levels = c(0.5, 0.7, 0.8, 0.9, 0.95, 0.99), history = 50, interactive = FALSE)` | ggplot: forecast and nested shaded intervals |
+| `outlier_regressors(y, dates = NULL, types = "AO", delta = 0.7, positions = NULL)` | ts matrix: AO/LS/TC regressors named by type and date |
+| `detect_outliers(x, order = NULL, types = c("AO", "LS", "TC"), cval = NULL, delta = 0.7, include.constant = NULL, ...)` | outlier table, final model, effects, adjusted series |
+| `plot_outliers(x, title = "Outlier Effects", interactive = FALSE)` | patchwork: adjusted series and outlier effects |
 
 Full argument documentation is available in R with `?function_name` (e.g. `?recursive_estimation`).
 

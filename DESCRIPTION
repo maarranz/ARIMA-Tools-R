@@ -10,7 +10,7 @@ Description: Tables, summaries, numerical forecasts and figures for empirical
     Complements 'forecast' and 'stats' with root and common-root diagnostics,
     coefficient inference, residual diagnostics, dynamic effects, recursive
     parameter stability, transparent order searches, psi-weight forecast-error
-    variances and fan charts.
+    variances, fan charts, and outlier regressors, detection and effect plots.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1)
@@ -24,6 +24,7 @@ Imports:
 Suggests:
     plotly,
     lmtest,
+    tsoutliers,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 RoxygenNote: 7.3.2

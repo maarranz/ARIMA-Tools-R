@@ -10,7 +10,7 @@ remotes::install_github("maarranz/ARIMA-Tools-R")
 library(arimatools)
 ```
 
-Requires R ≥ 4.1. Imports `forecast`, `ggplot2`, `patchwork` and `zoo`; `plotly` is optional (`interactive = TRUE`).
+Requires R ≥ 4.1. Imports `forecast`, `ggplot2`, `patchwork` and `zoo`; `plotly` is optional (`interactive = TRUE`), and `tsoutliers` is needed only for `detect_outliers()`.
 
 ## Quick start
 
@@ -31,12 +31,13 @@ plot_fan_chart(fit, steps = 20)
 
 ## Public API
 
-The same 26 functions as the Python package, with the same names, exported flat (`arimatools::function()` or `library(arimatools)`).
+The same 26 functions as the Python package, with the same names, plus three outlier functions (R only for now), exported flat (`arimatools::function()` or `library(arimatools)`).
 
 - **Estimation and model properties:** `coefficient_diagnostics`, `parameter_correlation`, `joint_significance`, `root_diagnostics`, `is_causal`, `is_invertible`, `common_roots`, `root_summary`, `plot_inverse_roots`.
 - **Diagnostics:** `ljung_box_test`, `residual_correlations`, `jarque_bera_test`, `plot_residual_diagnostics`, `dynamic_effects`, `plot_dynamic_effects`, `recursive_estimation`, `plot_parameter_stability`.
 - **Model comparison and selection:** `compare_models`, `order_search`, `select_model`, `auto_arima`, `auto_arima_summary`.
 - **Forecasting:** `forecast_error_variance`, `dynamic_forecast`, `plot_forecast`, `plot_fan_chart` (default fan coverages `c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99)`).
+- **Outliers (AO, LS, TC; nonseasonal models):** `outlier_regressors` (dummies for dates you choose, e.g. `"2020Q2"`), `detect_outliers` (Chen–Liu procedure via `tsoutliers::tso()`, for a fitted model, a fixed order or an auto.arima choice), `plot_outliers` (observed vs adjusted series and the combined outlier effect, for detected or hand-picked outliers).
 
 [API documentation — rendered HTML](docs/index.html) · [Quarto source](docs/arimatools_Documentation.qmd) · in R: `?recursive_estimation`, etc.
 
@@ -68,7 +69,7 @@ Point estimates, log likelihoods, information criteria, roots, psi weights and p
 testthat::test_local()   # from the package root
 ```
 
-The suite ports `tests/test_forecasting.py` (FEV against Kalman variances and closed forms for AR(1), ARMA(1,1) and the random walk) and adds checks for every other function against base R, `forecast` and `lmtest`.
+The suite ports `tests/test_forecasting.py` (FEV against Kalman variances and closed forms for AR(1), ARMA(1,1) and the random walk) and adds checks for every other function against base R, `forecast`, `lmtest` and `tsoutliers`.
 
 ## Related projects
 

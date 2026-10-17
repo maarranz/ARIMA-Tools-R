@@ -269,6 +269,7 @@ selection</a></li>
 <li><a href="#dynamic-effects-and-parameter-stability" id="toc-dynamic-effects-and-parameter-stability">Dynamic effects and
 parameter stability</a></li>
 <li><a href="#forecasting" id="toc-forecasting">Forecasting</a></li>
+<li><a href="#outliers" id="toc-outliers">Outliers</a></li>
 <li><a href="#compact-api-summary" id="toc-compact-api-summary">Compact
 API summary</a></li>
 <li><a href="#course-resources-and-author" id="toc-course-resources-and-author">Course, resources, and
@@ -285,8 +286,9 @@ forecasts, and figures.</p>
 <p>This document describes the software/API. The ATSE course material
 provides the econometric theory; the Labs provide fuller worked examples
 and exercises. The package exposes the same <strong>26 public
-functions</strong> as the Python version, with the same names. Models
-are fitted with <code>forecast::Arima()</code> (recommended),
+functions</strong> as the Python version, with the same names, plus
+three outlier functions that are R-only for now. Models are fitted with
+<code>forecast::Arima()</code> (recommended),
 <code>forecast::auto.arima()</code> or <code>stats::arima()</code>, and
 every function that takes a fitted model accepts any of the three —
 including the output of <code>auto_arima()</code>, which in Python was a
@@ -378,7 +380,8 @@ psi-weight forecast-error variance have no direct R counterpart.</p>
 <p>Dependencies (<code>forecast</code>, <code>ggplot2</code>,
 <code>patchwork</code>, <code>zoo</code>) are installed automatically.
 <code>plotly</code> is optional and only needed for
-<code>interactive = TRUE</code>.</p>
+<code>interactive = TRUE</code>; <code>tsoutliers</code> is needed only
+for <code>detect_outliers()</code>.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forecast)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arimatools)</span></code></pre></div>
 <h3 id="small-example-used-below">Small example used below</h3>
@@ -574,6 +577,51 @@ and Statsmodels report the ML estimate SSR / n. Using
 <code>fit$sigma2</code> keeps these intervals consistent with
 <code>forecast(fit)</code> for the same object. Models with external
 regressors other than drift are outside the forecasting interface.</p>
+<h2 id="outliers">Outliers</h2>
+<p>Three outlier types are supported, for nonseasonal models: an
+<strong>additive outlier</strong> (AO) is 1 at its date and 0 elsewhere;
+a <strong>level shift</strong> (LS) is 1 from its date onwards; a
+<strong>temporary change</strong> (TC) is <code>delta^(t - t0)</code>
+from its date onwards (<code>delta = 0.7</code> by default).</p>
+<p><code>outlier_regressors()</code> builds these regressors for dates
+you choose, for example from known historical events, to pass as
+<code>xreg</code>. Dates can be written <code>&quot;2020Q2&quot;</code>,
+<code>&quot;2020:2&quot;</code>, <code>&quot;2008M09&quot;</code>,
+<code>&quot;2008-09-01&quot;</code>, as <code>Date</code> objects, or as
+observation numbers through <code>positions</code>. Columns are named by
+type and period (<code>AO2020Q2</code>), so the usual tables and tests
+identify them.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">outlier_regressors</span>(y, <span class="at">dates =</span> <span class="fu">c</span>(<span class="st">&quot;2008M09&quot;</span>, <span class="st">&quot;2016M03&quot;</span>), <span class="at">types =</span> <span class="fu">c</span>(<span class="st">&quot;LS&quot;</span>, <span class="st">&quot;AO&quot;</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>fit_dummies <span class="ot">&lt;-</span> <span class="fu">Arima</span>(y, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="at">include.mean =</span> <span class="cn">FALSE</span>, <span class="at">xreg =</span> X)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>dummy_table <span class="ot">&lt;-</span> <span class="fu">coefficient_diagnostics</span>(fit_dummies)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>dummy_test <span class="ot">&lt;-</span> <span class="fu">joint_significance</span>(fit_dummies, <span class="fu">colnames</span>(X))</span></code></pre></div>
+<p><code>detect_outliers()</code> runs the Chen–Liu (1993) procedure
+through <code>tsoutliers::tso()</code> and re-estimates the final model
+with <code>forecast::Arima()</code> and regressors from
+<code>outlier_regressors()</code>. The model can be a fitted nonseasonal
+model (order and mean or drift kept fixed), a series with
+<code>order = c(p, d, q)</code>, or a series alone, in which case
+auto.arima chooses the order (BIC, nonseasonal). The critical value
+<code>cval</code> follows the tsoutliers rule (3 for n ≤ 50, 4 for n ≥
+450, linear in between) unless given. The result prints a dated table of
+outliers and contains the final model (<code>$fit</code>), the
+regressors, the combined effect and the adjusted series.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>detected <span class="ot">&lt;-</span> <span class="fu">detect_outliers</span>(fit)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>detected<span class="sc">$</span>outliers</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>diagnostics_after <span class="ot">&lt;-</span> <span class="fu">ljung_box_test</span>(detected<span class="sc">$</span>fit, <span class="at">lags =</span> <span class="fu">c</span>(<span class="dv">8</span>, <span class="dv">12</span>))</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>comparison_outliers <span class="ot">&lt;-</span> <span class="fu">compare_models</span>(fit, detected<span class="sc">$</span>fit,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>                                      <span class="at">names =</span> <span class="fu">c</span>(<span class="st">&quot;No outliers&quot;</span>, <span class="st">&quot;Outliers&quot;</span>))</span></code></pre></div>
+<p><code>plot_outliers()</code> draws the observed and outlier-adjusted
+series, with outlier dates marked by type, and the combined outlier
+effect. It accepts the output of <code>detect_outliers()</code> or any
+model fitted with regressors from <code>outlier_regressors()</code>, so
+automatic and hand-picked outliers can be shown side by side.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>outlier_plot <span class="ot">&lt;-</span> <span class="fu">plot_outliers</span>(detected)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>dummy_plot <span class="ot">&lt;-</span> <span class="fu">plot_outliers</span>(fit_dummies, <span class="at">title =</span> <span class="st">&quot;Hand-picked outliers&quot;</span>)</span></code></pre></div>
+<p>Detection currently uses tsoutliers; the arguments and output are
+defined independently of it so that the algorithm can later be replaced
+without changing code that uses these functions. Forecasting models with
+outlier regressors is not supported yet.</p>
 <h2 id="compact-api-summary">Compact API summary</h2>
 <p><code>fit</code> is a model from <code>forecast::Arima()</code>,
 <code>forecast::auto.arima()</code> or <code>stats::arima()</code>. Plot
@@ -709,6 +757,21 @@ lines</td>
 <td style="text-align: left;">ggplot: forecast and nested shaded
 intervals</td>
 </tr>
+<tr class="odd">
+<td style="text-align: left;"><code>outlier_regressors(y, dates = NULL, types = &quot;AO&quot;, delta = 0.7, positions = NULL)</code></td>
+<td style="text-align: left;">ts matrix: AO/LS/TC regressors named by
+type and date</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>detect_outliers(x, order = NULL, types = c(&quot;AO&quot;, &quot;LS&quot;, &quot;TC&quot;), cval = NULL, delta = 0.7, include.constant = NULL, ...)</code></td>
+<td style="text-align: left;">outlier table, final model, effects,
+adjusted series</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>plot_outliers(x, title = &quot;Outlier Effects&quot;, interactive = FALSE)</code></td>
+<td style="text-align: left;">patchwork: adjusted series and outlier
+effects</td>
+</tr>
 </tbody>
 </table>
 <p>Full argument documentation is available in R with
@@ -736,8 +799,8 @@ ORCID: <a href="https://orcid.org/0000-0002-5951-2284">0000-0002-5951-2284</a></
 <h3 id="rebuilding-the-html">Rebuilding the HTML</h3>
 <p>The examples are ordinary R code blocks, validated in a fresh session
 rather than executed during rendering. With Quarto installed:</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> pandoc docs/arimatools_Documentation.qmd <span class="dt">\</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--from</span> markdown <span class="at">--to</span> html5 <span class="at">--standalone</span> <span class="at">--toc</span> <span class="at">--toc-depth</span><span class="op">=</span>2 <span class="dt">\</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--embed-resources</span> <span class="at">-o</span> docs/index.html</span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> pandoc docs/arimatools_Documentation.qmd <span class="dt">\</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--from</span> markdown <span class="at">--to</span> html5 <span class="at">--standalone</span> <span class="at">--toc</span> <span class="at">--toc-depth</span><span class="op">=</span>2 <span class="dt">\</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--embed-resources</span> <span class="at">-o</span> docs/index.html</span></code></pre></div>
 </body>
 </html>

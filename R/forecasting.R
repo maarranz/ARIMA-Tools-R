@@ -65,6 +65,11 @@ dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
 
 .point_forecast <- function(fit, steps) {
   xreg_names <- setdiff(colnames(fit$xreg), "drift")
+  if (length(xreg_names) && all(grepl("^(AO|LS|TC)", xreg_names))) {
+    stop("Forecasting models with outlier regressors (",
+         paste(xreg_names, collapse = ", "), ") is not supported yet.",
+         call. = FALSE)
+  }
   if (length(xreg_names)) {
     stop("Models with external regressors (", paste(xreg_names, collapse = ", "),
          ") need future regressor values; use forecast::forecast(fit, xreg = ...).",
