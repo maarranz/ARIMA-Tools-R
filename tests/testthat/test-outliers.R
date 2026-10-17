@@ -163,8 +163,8 @@ test_that("D6: missing values and short samples give clear errors", {
   set.seed(1703)
   z <- ts(rnorm(100), start = 2000, frequency = 4)
   z[30] <- NA
-  expect_error(detect_outliers(z, order = c(1, 0, 0)), "missing values")
-  expect_error(detect_outliers(forecast::Arima(z, order = c(1, 0, 0))), "missing values")
+  expect_error(detect_outliers(z, order = c(1, 0, 0)), "missing")
+  expect_error(detect_outliers(forecast::Arima(z, order = c(1, 0, 0))), "missing")
   expect_error(detect_outliers(ts(rnorm(8)), order = c(0, 0, 0)), "Too few")
   expect_error(detect_outliers(ts(rnorm(15))), "Too few")
   expect_error(detect_outliers(cbind(a = rnorm(50), b = rnorm(50))), "univariate")
@@ -180,4 +180,47 @@ test_that("D7: outliers on the same date share one marker", {
   expect_equal(nrow(pts), 2L)
   expect_equal(pts$type, c("Several", "TC"))
   expect_match(pts$text[1], "AO2009Q4.*LS2009Q4")
+})
+
+
+# ---- Regression tests for the v0.3.0 final review (F2, F8, F9) --------------
+
+test_that("F2: partial argument names and fake drift regressors are rejected", {
+  skip_tso()
+  set.seed(308)
+  Z <- cbind(z = rnorm(120))
+  y8 <- ts(3 * Z[, 1] + rnorm(120, sd = 0.3)); y8[60] <- y8[60] + 8
+  expect_error(detect_outliers(y8, order = c(0, 0, 0), include.constant = FALSE,
+                               xr = Z, cval = 4), "not supported")
+  expect_error(detect_outliers(y8, order = c(0, 0, 0), foo = 1), "Unknown argument")
+  set.seed(302)
+  Zd <- cbind(drift = rnorm(160))
+  y2 <- ts(cumsum(rnorm(160, sd = 0.2)) + 3 * Zd[, 1], start = 1980, frequency = 4)
+  f2 <- forecast::Arima(y2, order = c(0, 1, 0), xreg = Zd)
+  expect_error(detect_outliers(f2, cval = 4), "not a linear time trend")
+  # the genuine built-in drift is still accepted
+  fd <- forecast::Arima(ts(cumsum(0.3 + rnorm(150)), frequency = 4, start = 1980),
+                        order = c(0, 1, 1), include.drift = TRUE)
+  expect_s3_class(suppressWarnings(detect_outliers(fd)), "arimatools_outliers")
+})
+
+test_that("F8: models with fixed coefficients are rejected", {
+  skip_tso()
+  set.seed(310)
+  y10 <- ts(as.numeric(arima.sim(list(ar = 0.6), n = 150)))
+  f10 <- forecast::Arima(y10, order = c(1, 0, 0), fixed = c(0.6, NA),
+                         transform.pars = FALSE)
+  expect_error(detect_outliers(f10, cval = 100), "fixed")
+})
+
+test_that("F9: invalid inputs to outlier_regressors and detect_outliers", {
+  z <- ts(rnorm(100), start = 2000, frequency = 4)
+  expect_error(outlier_regressors(cbind(z, z), positions = 4), "univariate")
+  expect_error(outlier_regressors(z, positions = NA_real_), "missing values")
+  expect_error(outlier_regressors(z, positions = integer()), "at least one")
+  expect_error(outlier_regressors(z, positions = 4, types = character()), "types")
+  expect_true(is.matrix(outlier_regressors(rnorm(30), positions = 5)))
+  expect_false(stats::is.ts(outlier_regressors(rnorm(30), positions = 5)))
+  skip_tso()
+  expect_error(detect_outliers(replace(z, 4, Inf), order = c(0, 0, 0)), "infinite")
 })

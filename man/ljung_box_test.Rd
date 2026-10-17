@@ -7,21 +7,21 @@
 ljung_box_test(fit, lags)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{lags}{Integer vector of lags.}
 }
 \value{
-A data frame with columns `lag`, `statistic`, `df` and `p.value`.
+A data frame with columns \code{lag}, \code{statistic}, \code{df} and \code{p.value}.
 }
 \description{
 Ljung-Box statistics at one or several lags, with degrees of freedom
 adjusted for the number of estimated ARMA coefficients,
-`df = h - (p + q + P + Q)`. Lags with non-positive degrees of freedom are
-rejected.
+\code{df = h - (p + q + P + Q)}. Lags with non-positive degrees of freedom are
+rejected. Models whose residuals have gaps inside the sample are rejected,
+because the test assumes consecutive residuals.
 }
 \details{
-Related: `stats::Box.test(residuals(fit), lag = h, type = "Ljung-Box",
-fitdf = p + q)` for one lag; `forecast::checkresiduals(fit)`.
+Related: \code{stats::Box.test(residuals(fit), lag = h, type = "Ljung-Box", fitdf = p + q)} for one lag; \code{forecast::checkresiduals(fit)}.
 }

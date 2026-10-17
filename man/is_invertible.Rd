@@ -7,8 +7,8 @@
 is_invertible(fit, tol = 1e-10)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{tol}{Numerical tolerance when comparing root moduli with one.}
 }
@@ -16,5 +16,5 @@ or [stats::arima()].}
 A single logical value.
 }
 \description{
-`TRUE` when every MA root lies outside the unit circle.
+\code{TRUE} when every MA root lies outside the unit circle.
 }

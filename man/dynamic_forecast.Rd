@@ -7,23 +7,32 @@
 dynamic_forecast(fit, steps = 20, level = 0.95)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{steps}{Number of horizons (positive integer).}
 
 \item{level}{Coverage of the central prediction interval.}
 }
 \value{
-A data frame with columns `horizon`, `forecast`, `fev`, `se`,
-  `lower` and `upper`.
+A data frame with columns \code{horizon}, \code{forecast}, \code{fev}, \code{se},
+\code{lower} and \code{upper}.
 }
 \description{
-Point forecasts from [forecast::forecast()] (which handles means and drift
-automatically); uncertainty from [forecast_error_variance()], not from the
+Point forecasts from \code{\link[forecast:reexports]{forecast::forecast()}} (which handles means and drift
+automatically); uncertainty from \code{\link[=forecast_error_variance]{forecast_error_variance()}}, not from the
 Kalman filter.
 }
 \details{
-Models with external regressors other than drift cannot be forecast through
-this interface.
+These are single-origin forecasts: all horizons are made from the end of
+the sample, with unknown future innovations set to zero; they are not
+re-estimated or updated as new observations arrive. The intervals are
+Gaussian, conditional on the estimated parameters and the selected model;
+they do not include parameter or model-selection uncertainty.
+
+Not supported (an error explains why): models with external regressors other
+than drift (including outlier regressors), models with a Box-Cox
+transformation (\code{lambda}), whose point forecasts and variances would be on
+different scales, and series with missing values, for which the psi-weight
+variances understate the uncertainty.
 }

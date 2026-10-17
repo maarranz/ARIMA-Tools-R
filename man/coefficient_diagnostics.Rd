@@ -7,14 +7,14 @@
 coefficient_diagnostics(fit, confidence = 0.95)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{confidence}{Confidence level for the intervals.}
 }
 \value{
-A data frame with columns `term`, `estimate`, `std.error`,
-  `statistic`, `p.value`, `conf.low` and `conf.high` (broom conventions).
+A data frame with columns \code{term}, \code{estimate}, \code{std.error},
+\code{statistic}, \code{p.value}, \code{conf.low} and \code{conf.high} (broom conventions).
 }
 \description{
 Estimates, standard errors, z-statistics, two-sided asymptotic p-values and
@@ -25,5 +25,5 @@ No significance stars or automatic classification are provided: in dynamic
 models, coefficient relevance should not be judged mechanically by a fixed
 p-value threshold.
 
-Related: `lmtest::coeftest(fit)` and `confint(fit)` give the same numbers.
+Related: \code{lmtest::coeftest(fit)} and \code{confint(fit)} give the same numbers.
 }

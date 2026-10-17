@@ -7,16 +7,16 @@
 root_summary(fit, tol = 0.05, exact_tol = 1e-10)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{tol}{Maximum distance between inverse roots to report a pair.}
 
 \item{exact_tol}{Distance at or below which a pair is "Common".}
 }
 \value{
-A named list of class `arimatools_summary` (prints as a two-column
-  display; use `as.data.frame()` for a table).
+A named list of class \code{arimatools_summary} (prints as a two-column
+display; use \code{as.data.frame()} for a table).
 }
 \description{
 Causality, invertibility, and counts of common and near-common AR/MA root

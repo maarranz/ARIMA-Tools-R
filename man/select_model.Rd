@@ -4,18 +4,37 @@
 \alias{select_model}
 \title{Select the model that minimizes an information criterion}
 \usage{
-select_model(table, criterion = "BIC")
+select_model(table, criterion = "BIC", d = NULL)
 }
 \arguments{
-\item{table}{Output of [compare_models()] or [order_search()].}
+\item{table}{Output of \code{\link[=compare_models]{compare_models()}} or \code{\link[=order_search]{order_search()}}.}
 
 \item{criterion}{One of "AIC", "AICc", "BIC", "HQIC".}
+
+\item{d}{Order of differencing to select within. Needed only when the table
+contains several values of d.}
 }
 \value{
 The selected row, as a one-row data frame.
 }
 \description{
-Non-converged models (if a `converged` column exists) and non-finite values
-are excluded. The minimum criterion says nothing about residual adequacy or
-parameter stability.
+This is the only function in the package that chooses a model;
+\code{\link[=order_search]{order_search()}} and \code{\link[=compare_models]{compare_models()}} only estimate and report. Before
+choosing, it checks that the criteria are comparable. Non-converged models
+(if a \code{converged} column exists) and non-finite values are excluded. The
+minimum criterion says nothing about residual adequacy or parameter
+stability.
+}
+\details{
+Information criteria are comparable only among models with the same order
+of differencing d, because differencing changes the effective sample. The
+order of integration should be chosen first (unit-root tests, graphs,
+correlograms). If the table contains models with different d,
+\code{select_model()} stops unless \code{d} says which d to select within. It also
+stops if the remaining candidates were estimated on different numbers of
+observations. It cannot check that the dependent variable is the same; that
+remains the user's responsibility.
+
+Fits estimated by conditional sum of squares (\code{method = "CSS"}) have no
+likelihood; their criteria are \code{NA} and they are never selected.
 }

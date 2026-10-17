@@ -7,8 +7,8 @@
 is_causal(fit, tol = 1e-10)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{tol}{Numerical tolerance when comparing root moduli with one.}
 }
@@ -16,7 +16,7 @@ or [stats::arima()].}
 A single logical value.
 }
 \description{
-`TRUE` when every AR root lies outside the unit circle. For ARIMA(p,d,q)
+\code{TRUE} when every AR root lies outside the unit circle. For ARIMA(p,d,q)
 models this refers to the AR polynomial of the stationary ARMA component,
 not to the stationarity of the original series when d > 0.
 }

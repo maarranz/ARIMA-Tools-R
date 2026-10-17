@@ -7,14 +7,14 @@
 \title{arimatools: teaching-oriented tools for empirical ARIMA modelling}
 \description{
 R port of the Python package ARIMA-Tools (ATSE, UC3M). Every function takes
-a model fitted with [forecast::Arima()], [forecast::auto.arima()] or
-[stats::arima()], except the functions that estimate models themselves
-([order_search()], [recursive_estimation()], [auto_arima()]).
+a model fitted with \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}} or
+\code{\link[stats:arima]{stats::arima()}}, except the functions that estimate models themselves
+(\code{\link[=order_search]{order_search()}}, \code{\link[=recursive_estimation]{recursive_estimation()}}, \code{\link[=auto_arima]{auto_arima()}}).
 }
 \details{
 Function names match the Python API. Tables follow R/broom conventions
-(`term`, `estimate`, `std.error`, `p.value`, ...). Figures are ggplot2
-objects; pass `interactive = TRUE` for a plotly widget.
+(\code{term}, \code{estimate}, \code{std.error}, \code{p.value}, ...). Figures are ggplot2
+objects; pass \code{interactive = TRUE} for a plotly widget.
 }
 \author{
 \strong{Maintainer}: Miguel A. Arranz \email{maarranz@eco.uc3m.es} (\href{https://orcid.org/0000-0002-5951-2284}{ORCID})

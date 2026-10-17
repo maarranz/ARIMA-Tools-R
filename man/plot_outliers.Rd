@@ -7,28 +7,28 @@
 plot_outliers(x, title = "Outlier Effects", interactive = FALSE)
 }
 \arguments{
-\item{x}{Output of [detect_outliers()], or a fitted `Arima` model whose
-regressors include columns named by [outlier_regressors()].}
+\item{x}{Output of \code{\link[=detect_outliers]{detect_outliers()}}, or a fitted \code{Arima} model whose
+regressors include columns named by \code{\link[=outlier_regressors]{outlier_regressors()}}.}
 
 \item{title}{Overall title.}
 
-\item{interactive}{If `TRUE`, return a plotly widget (requires 'plotly').}
+\item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
 }
 \value{
-A patchwork object (or a plotly widget when `interactive = TRUE`).
+A patchwork object (or a plotly widget when \code{interactive = TRUE}).
 }
 \description{
-Two panels in the style of `tsoutliers::plot.tsoutliers()`: the observed and
+Two panels in the style of \code{tsoutliers::plot.tsoutliers()}: the observed and
 outlier-adjusted series, with outlier dates marked by type, and the combined
 outlier effect over time.
 }
 \details{
 Works both for automatic detection and for outliers chosen by hand:
-`x` can be the output of [detect_outliers()] or any model fitted with
-regressors from [outlier_regressors()]. In the second case the effect is the
+\code{x} can be the output of \code{\link[=detect_outliers]{detect_outliers()}} or any model fitted with
+regressors from \code{\link[=outlier_regressors]{outlier_regressors()}}. In the second case the effect is the
 regressors multiplied by their estimated coefficients. Several outliers on
 the same date share one marker (a diamond), whose tooltip lists them all.
 
-Models with a Box-Cox transformation (`lambda`) are rejected, because their
+Models with a Box-Cox transformation (\code{lambda}) are rejected, because their
 effects are on the transformed scale.
 }

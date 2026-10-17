@@ -13,24 +13,24 @@ plot_fan_chart(
 )
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{steps}{Number of horizons (positive integer).}
 
 \item{levels}{Distinct coverages in (0, 1); order does not matter.}
 
-\item{history}{Number of final observations to display (`NULL` = all).}
+\item{history}{Number of final observations to display (\code{NULL} = all).}
 
-\item{interactive}{If `TRUE`, return a plotly widget (requires 'plotly').}
+\item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
 }
 \value{
-A ggplot object (or a plotly widget when `interactive = TRUE`).
+A ggplot object (or a plotly widget when \code{interactive = TRUE}).
 }
 \description{
 Nested central prediction-interval bands (widest drawn first, so the centre
 is darkest), joined to the last observation, with the observed series and
-the point forecast drawn on top. Each band comes from [dynamic_forecast()].
+the point forecast drawn on top. Each band comes from \code{\link[=dynamic_forecast]{dynamic_forecast()}}.
 }
 \details{
 Related: the 'fanplot' package draws fan charts in base graphics from

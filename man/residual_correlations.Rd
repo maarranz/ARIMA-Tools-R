@@ -7,17 +7,19 @@
 residual_correlations(fit, lags = 20, confidence = 0.95)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{lags}{Maximum lag.}
 
 \item{confidence}{Confidence level for the bounds.}
 }
 \value{
-A data frame with columns `lag`, `acf`, `pacf`, `lower` and `upper`.
+A data frame with columns \code{lag}, \code{acf}, \code{pacf}, \code{lower} and \code{upper}.
 }
 \description{
 Lag zero is omitted. The bounds are the individual approximate white-noise
-bounds +/- z / sqrt(T); they are not a joint test (use [ljung_box_test()]).
+bounds +/- z / sqrt(T); they are not a joint test (use \code{\link[=ljung_box_test]{ljung_box_test()}}).
+Residuals with gaps inside the sample are rejected, because the lags would
+no longer correspond to calendar distances.
 }

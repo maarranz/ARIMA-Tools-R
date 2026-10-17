@@ -151,8 +151,9 @@
 #'   number of dates.
 #' @param delta Decay rate of temporary changes, in (0, 1).
 #' @param positions Alternative to `dates`: observation numbers.
-#' @return A `ts` matrix with one column per outlier and the time attributes
-#'   of `y`; attribute `outliers` holds a table of type, period and position.
+#' @return A matrix with one column per outlier: a `ts` matrix with the time
+#'   attributes of `y` when `y` is a `ts`, an ordinary matrix otherwise.
+#'   Attribute `outliers` holds a table of type, period and position.
 #' @examples
 #' set.seed(1)
 #' y <- ts(cumsum(rnorm(100)), start = c(2000, 1), frequency = 4)
@@ -165,9 +166,21 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
   if (is.null(dates) == is.null(positions)) {
     stop("Give exactly one of `dates` or `positions`.", call. = FALSE)
   }
+  if (!is.null(dim(y)) && NCOL(y) > 1) {
+    stop("`y` must be a univariate series.", call. = FALSE)
+  }
+  if (!length(y)) stop("`y` is empty.", call. = FALSE)
   .check_level(delta, "delta")
+  given <- if (is.null(positions)) dates else positions
+  if (!length(given) || anyNA(given)) {
+    stop("Give at least one date or position, without missing values.", call. = FALSE)
+  }
+  if (!length(types) || anyNA(types)) {
+    stop("`types` must contain \"AO\", \"LS\" or \"TC\".", call. = FALSE)
+  }
   idx <- if (!is.null(positions)) {
-    if (!is.numeric(positions) || any(positions != round(positions))) {
+    if (!is.numeric(positions) || any(!is.finite(positions)) ||
+        any(positions != round(positions))) {
       stop("`positions` must be observation numbers.", call. = FALSE)
     }
     .periods_to_index(as.numeric(y), positions)
@@ -212,7 +225,8 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
 #'
 #' Three ways to specify the model:
 #' * `detect_outliers(fit)`: a fitted nonseasonal model; its series, order and
-#'   constant (mean or drift) are kept fixed.
+#'   constant (mean or drift) are kept fixed. Models with fixed (constrained)
+#'   coefficients are rejected, because the constraints would not be kept.
 #' * `detect_outliers(y, order = c(1, 0, 1))`: the same without fitting first.
 #' * `detect_outliers(y)`: the order is chosen by `auto.arima` with the course
 #'   defaults (BIC, nonseasonal). The order selected in the presence of
@@ -258,7 +272,8 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
 #'   (mean if d = 0, drift if d = 1) or `FALSE`. Ignored when auto.arima
 #'   chooses the model.
 #' @param ... Further arguments for [tsoutliers::tso()] that control the search
-#'   (e.g. `maxit.iloop`, `discard.method`). `xreg`, `lambda` and the
+#'   (e.g. `maxit.iloop`, `discard.method`). Names are matched as `tso()`
+#'   would match them (so `xr` means `xreg`); `xreg`, `lambda` and the
 #'   arguments that specify the model are not allowed here.
 #' @return An object of class `arimatools_outliers`: a list with `outliers`
 #'   (table with `type`, `date`, `index`, `time`, `estimate`, `std.error`,
@@ -280,9 +295,18 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
   }
   .check_level(delta, "delta")
   dots <- list(...)
+  # Resolve partial names (e.g. `xr` -> `xreg`) as tso() itself would.
+  dot_names <- .resolve_dot_names(dots, tsoutliers::tso)
+  if ("lambda" %in% names(dots)) dot_names[names(dots) == "lambda"] <- "lambda"
+  unknown <- setdiff(dot_names, c(names(formals(tsoutliers::tso)), "lambda"))
+  if (length(unknown)) {
+    stop("Unknown argument(s) in `...`: ", paste(unknown, collapse = ", "),
+         ". See ?tsoutliers::tso for the search options.", call. = FALSE)
+  }
+  names(dots) <- dot_names
   reserved <- c("y", "xreg", "lambda", "types", "cval", "delta", "tsmethod",
                 "args.tsmethod", "check.rank")
-  bad_dots <- intersect(names(dots), reserved)
+  bad_dots <- intersect(dot_names, reserved)
   if (length(bad_dots)) {
     if (any(c("xreg", "lambda") %in% bad_dots)) {
       stop("detect_outliers() supports univariate models of the series as given: ",
@@ -307,6 +331,11 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
            "detect_outliers() does not support. Transform the series yourself ",
            "(e.g. log(y)) and fit the model without `lambda`.", call. = FALSE)
     }
+    if (any(!.free(x))) {
+      stop("The model has fixed (constrained) coefficients, which ",
+           "detect_outliers() does not preserve. Fit the model without `fixed`.",
+           call. = FALSE)
+    }
     cn <- names(x$coef)
     other <- cn[!grepl("^(ar|ma)[0-9]+$", cn) & !cn %in% c("intercept", "drift")]
     if (length(other)) {
@@ -315,7 +344,14 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
            "them.", call. = FALSE)
     }
     y <- .response(x)
-    if (anyNA(y)) stop("The series must not contain missing values.", call. = FALSE)
+    if (!all(is.finite(y))) {
+      stop("The series must not contain missing or infinite values.", call. = FALSE)
+    }
+    if ("drift" %in% cn && !.is_builtin_drift(x)) {
+      stop("The model has a regressor named 'drift' that is not a linear time ",
+           "trend. Only the built-in drift (include.drift = TRUE in ",
+           "forecast::Arima) is supported.", call. = FALSE)
+    }
     ord <- c(o$p, o$d, o$q)
     use_mean <- "intercept" %in% cn
     use_drift <- "drift" %in% cn
@@ -325,8 +361,12 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
       stop("`x` must be a univariate series.", call. = FALSE)
     }
     y <- x
+    if (!is.numeric(y)) stop("`x` must be a numeric series or a fitted model.",
+                             call. = FALSE)
     if (!stats::is.ts(y)) y <- stats::ts(as.numeric(y))
-    if (anyNA(y)) stop("The series must not contain missing values.", call. = FALSE)
+    if (!all(is.finite(y))) {
+      stop("The series must not contain missing or infinite values.", call. = FALSE)
+    }
     auto <- is.null(order)
     if (!auto) {
       if (!is.numeric(order) || length(order) != 3L ||
@@ -440,6 +480,18 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
          auto = auto, converged = converged, warnings = warns),
     class = "arimatools_outliers"
   )
+}
+
+# A built-in drift is a linear time trend stored in fit$xreg (forecast::Arima).
+# stats::arima has no built-in drift, so a 'drift' coefficient there comes from
+# a user regressor.
+.is_builtin_drift <- function(fit) {
+  X <- fit$xreg
+  if (is.null(X) || !"drift" %in% colnames(X)) return(FALSE)
+  dr <- as.numeric(X[, "drift"])
+  dd <- diff(dr)
+  length(dr) > 2 && all(is.finite(dr)) && abs(dd[1]) > 0 &&
+    all(abs(dd - dd[1]) < 1e-8 * max(1, abs(dd[1])))
 }
 
 # Evaluate an expression, muffling but recording its warnings.

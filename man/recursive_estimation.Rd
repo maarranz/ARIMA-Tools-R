@@ -15,39 +15,43 @@ recursive_estimation(
 )
 }
 \arguments{
-\item{y}{A numeric vector or `ts` object. Leading and trailing missing
-values of a `ts` are dropped.}
+\item{y}{A numeric vector or \code{ts} object. Leading and trailing missing
+values of a \code{ts} are dropped.}
 
-\item{order}{Integer vector `c(p, d, q)`.}
+\item{order}{Integer vector \code{c(p, d, q)}.}
 
-\item{initial}{`NULL`, a fraction in (0, 1), or an integer number of
+\item{initial}{\code{NULL}, a fraction in (0, 1), or an integer number of
 observations for the first window.}
 
 \item{min_df}{Minimum residual degrees of freedom for the automatic rule.}
 
 \item{confidence}{Confidence level for the intervals.}
 
-\item{include.constant}{Passed to [forecast::Arima()]. `NULL` (default)
+\item{include.constant}{Passed to \code{\link[forecast:Arima]{forecast::Arima()}}. \code{NULL} (default)
 keeps forecast's default: a mean when d = 0, no constant when d > 0.
-`TRUE` gives a mean when d = 0 and a drift when d = 1; `FALSE` none.}
+\code{TRUE} gives a mean when d = 0 and a drift when d = 1; \code{FALSE} none.}
 
-\item{...}{Further arguments for [forecast::Arima()] (e.g. `method`).}
+\item{...}{Further arguments for \code{\link[forecast:Arima]{forecast::Arima()}} (e.g. \code{method}).
+External regressors (\code{xreg}) and Box-Cox transformations (\code{lambda}) are
+not supported.}
 }
 \value{
-A long data frame with columns `endpoint`, `n`, `term`, `estimate`,
-  `std.error`, `conf.low`, `conf.high` and `converged`. `endpoint` is a
-  `Date` for monthly, quarterly and annual `ts` objects, decimal time for
-  other `ts`, and the observation number otherwise.
+A long data frame with columns \code{endpoint}, \code{n}, \code{term}, \code{estimate},
+\code{std.error}, \code{conf.low}, \code{conf.high} and \code{converged}. \code{endpoint} is a
+\code{Date} for monthly, quarterly and annual \code{ts} objects, decimal time for
+other \code{ts}, and the observation number otherwise. Endpoints where
+estimation failed have one row with missing values; the error messages are
+kept in \code{attr(result, "failures")}.
 }
 \description{
-Re-estimates the model on samples `1:initial`, `1:(initial + 1)`, ..., `1:n`
-with [forecast::Arima()] and stores the estimates, standard errors and
+Re-estimates the model on samples \code{1:initial}, \code{1:(initial + 1)}, ..., \code{1:n}
+with \code{\link[forecast:Arima]{forecast::Arima()}} and stores the estimates, standard errors and
 normal confidence intervals of every coefficient, plus the innovation
-variance (`sigma2`, without standard error).
+variance (\code{sigma2}, without standard error).
 }
 \details{
-If `initial` is `NULL`, the initial window is the larger of 10% of the
-sample and the window that leaves at least `min_df` residual degrees of
+If \code{initial} is \code{NULL}, the initial window is the larger of 10\% of the
+sample and the window that leaves at least \code{min_df} residual degrees of
 freedom. Routine estimation warnings are silenced; convergence status is
 kept in the output. If the default CSS-ML estimation fails at an endpoint,
 exact ML is tried before recording the endpoint as failed.

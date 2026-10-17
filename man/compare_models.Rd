@@ -12,8 +12,8 @@ compare_models(..., names = NULL)
 \item{names}{Optional model labels; overrides argument names.}
 }
 \value{
-A data frame with columns `model`, `order`, `n`, `k`, `loglik`,
-  `AIC`, `AICc`, `BIC` and `HQIC` (row names = model labels).
+A data frame with columns \code{model}, \code{order}, \code{n}, \code{k}, \code{loglik},
+\code{AIC}, \code{AICc}, \code{BIC} and \code{HQIC} (row names = model labels).
 }
 \description{
 With k = number of free coefficients + 1 (innovation variance) and n the
@@ -23,5 +23,7 @@ HQIC = -2 logL + 2k log log n.
 }
 \details{
 Criteria are comparable only across models for the same dependent variable
-and the same effective sample (in particular, the same d).
+and the same effective sample (in particular, the same d). Fits estimated by
+conditional sum of squares (\code{method = "CSS"}) have no likelihood, so their
+criteria are reported as \code{NA}.
 }

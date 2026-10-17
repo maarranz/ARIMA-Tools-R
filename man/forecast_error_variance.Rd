@@ -7,29 +7,32 @@
 forecast_error_variance(fit, steps = 20)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{steps}{Number of horizons (positive integer).}
 }
 \value{
-A numeric vector of length `steps`.
+A numeric vector of length \code{steps}.
 }
 \description{
 Expands the full ARIMA transfer function, including ordinary and seasonal
 differencing, to obtain psi_0, ..., psi_(steps-1), and returns
-`sigma2 * cumsum(psi^2)` for horizons 1 through `steps`.
+\code{sigma2 * cumsum(psi^2)} for horizons 1 through \code{steps}.
 }
 \details{
 Parameters are treated as fixed and past innovations as known, so
 parameter-estimation uncertainty is not included. The Kalman-filter
-variances behind `predict()` / [forecast::forecast()] are exact in finite
+variances behind \code{predict()} / \code{\link[forecast:reexports]{forecast::forecast()}} are exact in finite
 samples and can differ slightly (e.g. at the start of short samples or with
 missing values); for typical samples the two coincide to many decimals.
 
-The innovation variance is `fit$sigma2`. Note that [forecast::Arima()]
-reports a degrees-of-freedom-adjusted variance, SSR / (n - number of
-coefficients), whereas [stats::arima()] and Statsmodels report the ML
-estimate SSR / n. Using `fit$sigma2` keeps these intervals consistent with
-`forecast::forecast(fit)` for the same object.
+The innovation variance is \code{fit$sigma2}. Note that \code{\link[forecast:Arima]{forecast::Arima()}}
+reports a degrees-of-freedom-adjusted variance, SSR / (n' - number of
+coefficients), where n' is the number of observations after differencing,
+whereas \code{\link[stats:arima]{stats::arima()}} and Statsmodels report the ML estimate SSR / n'. Using \code{fit$sigma2} keeps these intervals consistent with
+\code{forecast::forecast(fit)} for the same object.
+
+Models with a Box-Cox transformation (\code{lambda}) and series with missing
+values are rejected (see Details of \code{\link[=dynamic_forecast]{dynamic_forecast()}}).
 }

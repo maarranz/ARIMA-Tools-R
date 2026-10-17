@@ -1,7 +1,7 @@
 Package: arimatools
 Type: Package
 Title: Teaching-Oriented Tools for Empirical ARIMA Modelling
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: person("Miguel A.", "Arranz", email = "maarranz@eco.uc3m.es",
     role = c("aut", "cre"), comment = c(ORCID = "0000-0002-5951-2284"))
 Description: Tables, summaries, numerical forecasts and figures for empirical
@@ -28,3 +28,4 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 RoxygenNote: 7.3.2
+Roxygen: list(markdown = TRUE)

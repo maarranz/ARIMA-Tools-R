@@ -12,17 +12,17 @@ plot_dynamic_effects(
 )
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{horizon}{Maximum horizon (non-negative integer).}
 
 \item{title}{Overall title.}
 
-\item{interactive}{If `TRUE`, return a plotly widget (requires 'plotly').}
+\item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
 }
 \value{
-A patchwork object (or a plotly widget when `interactive = TRUE`).
+A patchwork object (or a plotly widget when \code{interactive = TRUE}).
 }
 \description{
 Upper panel: psi weights as stems. Lower panel: their cumulative sum.

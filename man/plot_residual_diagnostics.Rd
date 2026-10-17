@@ -13,8 +13,8 @@ plot_residual_diagnostics(
 )
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{lags}{Maximum lag.}
 
@@ -22,10 +22,10 @@ or [stats::arima()].}
 
 \item{title}{Overall title.}
 
-\item{interactive}{If `TRUE`, return a plotly widget (requires 'plotly').}
+\item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
 }
 \value{
-A patchwork object (or a plotly widget when `interactive = TRUE`).
+A patchwork object (or a plotly widget when \code{interactive = TRUE}).
 }
 \description{
 Four stacked panels: residuals over time, residual ACF, residual PACF, and
@@ -33,7 +33,7 @@ Ljung-Box p-values by lag (only lags with positive degrees of freedom), with
 a reference line at 0.05.
 }
 \details{
-Related: `forecast::checkresiduals(fit)` (residuals, ACF, histogram, one
-Ljung-Box test) and `stats::tsdiag(fit)` (whose Ljung-Box p-values are
-*not* adjusted for the estimated parameters).
+Related: \code{forecast::checkresiduals(fit)} (residuals, ACF, histogram, one
+Ljung-Box test) and \code{stats::tsdiag(fit)} (whose Ljung-Box p-values are
+\emph{not} adjusted for the estimated parameters).
 }

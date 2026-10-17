@@ -7,15 +7,15 @@
 joint_significance(fit, parameters)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{parameters}{Character vector of coefficient names (as in
-`names(coef(fit))`, e.g. `c("ar2", "ma2")`).}
+\code{names(coef(fit))}, e.g. \code{c("ar2", "ma2")}).}
 }
 \value{
-A named list of class `arimatools_summary` with the Wald statistic,
-  degrees of freedom and asymptotic chi-squared p-value.
+A named list of class \code{arimatools_summary} with the Wald statistic,
+degrees of freedom and asymptotic chi-squared p-value.
 }
 \description{
 Wald test that a group of coefficients is jointly zero

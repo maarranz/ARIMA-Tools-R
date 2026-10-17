@@ -7,11 +7,11 @@
 auto_arima_summary(model)
 }
 \arguments{
-\item{model}{Output of [auto_arima()] (any fitted `Arima` object works; the
-selection criterion is then reported as `NA`).}
+\item{model}{Output of \code{\link[=auto_arima]{auto_arima()}} (any fitted \code{Arima} object works; the
+selection criterion is then reported as \code{NA}).}
 }
 \value{
-A named list of class `arimatools_summary`.
+A named list of class \code{arimatools_summary}.
 }
 \description{
 Reports the selected order and spells out the deterministic component: for

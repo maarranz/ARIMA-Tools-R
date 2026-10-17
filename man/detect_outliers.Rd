@@ -15,76 +15,80 @@ detect_outliers(
 )
 }
 \arguments{
-\item{x}{A fitted model ([forecast::Arima()], [stats::arima()]) or a series.}
+\item{x}{A fitted model (\code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[stats:arima]{stats::arima()}}) or a series.}
 
-\item{order}{`c(p, d, q)` when `x` is a series; `NULL` lets auto.arima
+\item{order}{\code{c(p, d, q)} when \code{x} is a series; \code{NULL} lets auto.arima
 choose it.}
 
 \item{types}{Outlier types to search for.}
 
-\item{cval}{Critical value for the t-statistics. `NULL` uses the tsoutliers
+\item{cval}{Critical value for the t-statistics. \code{NULL} uses the tsoutliers
 rule: 3 for n <= 50, 4 for n >= 450, linear in between.}
 
 \item{delta}{Decay rate of temporary changes.}
 
-\item{include.constant}{With a fixed order: `NULL` (mean if d = 0), `TRUE`
-(mean if d = 0, drift if d = 1) or `FALSE`. Ignored when auto.arima
+\item{include.constant}{With a fixed order: \code{NULL} (mean if d = 0), \code{TRUE}
+(mean if d = 0, drift if d = 1) or \code{FALSE}. Ignored when auto.arima
 chooses the model.}
 
-\item{...}{Further arguments for [tsoutliers::tso()] that control the search
-(e.g. `maxit.iloop`, `discard.method`). `xreg`, `lambda` and the
+\item{...}{Further arguments for \code{\link[tsoutliers:tso]{tsoutliers::tso()}} that control the search
+(e.g. \code{maxit.iloop}, \code{discard.method}). Names are matched as \code{tso()}
+would match them (so \code{xr} means \code{xreg}); \code{xreg}, \code{lambda} and the
 arguments that specify the model are not allowed here.}
 }
 \value{
-An object of class `arimatools_outliers`: a list with `outliers`
-  (table with `type`, `date`, `index`, `time`, `estimate`, `std.error`,
-  `statistic`), `fit` (final `Arima` model), `regressors`, `effects`
-  (combined outlier effect, a `ts`), `adjusted` (series minus effects),
-  `y`, `order`, `cval`, `delta`, `auto` (was the order selected?),
-  `converged` (did the final fit converge?) and `warnings`.
+An object of class \code{arimatools_outliers}: a list with \code{outliers}
+(table with \code{type}, \code{date}, \code{index}, \code{time}, \code{estimate}, \code{std.error},
+\code{statistic}), \code{fit} (final \code{Arima} model), \code{regressors}, \code{effects}
+(combined outlier effect, a \code{ts}), \code{adjusted} (series minus effects),
+\code{y}, \code{order}, \code{cval}, \code{delta}, \code{auto} (was the order selected?),
+\code{converged} (did the final fit converge?) and \code{warnings}.
 }
 \description{
 Detects additive outliers (AO), level shifts (LS) and temporary changes (TC)
 in a nonseasonal ARIMA model with the iterative procedure of Chen and Liu
-(1993), as implemented in [tsoutliers::tso()], and re-estimates the final
-model with [forecast::Arima()] and outlier regressors built by
-[outlier_regressors()].
+(1993), as implemented in \code{\link[tsoutliers:tso]{tsoutliers::tso()}}, and re-estimates the final
+model with \code{\link[forecast:Arima]{forecast::Arima()}} and outlier regressors built by
+\code{\link[=outlier_regressors]{outlier_regressors()}}.
 }
 \details{
 Three ways to specify the model:
-* `detect_outliers(fit)`: a fitted nonseasonal model; its series, order and
-  constant (mean or drift) are kept fixed.
-* `detect_outliers(y, order = c(1, 0, 1))`: the same without fitting first.
-* `detect_outliers(y)`: the order is chosen by `auto.arima` with the course
-  defaults (BIC, nonseasonal). The order selected in the presence of
-  outliers can differ from the one chosen for the raw series.
+\itemize{
+\item \code{detect_outliers(fit)}: a fitted nonseasonal model; its series, order and
+constant (mean or drift) are kept fixed. Models with fixed (constrained)
+coefficients are rejected, because the constraints would not be kept.
+\item \code{detect_outliers(y, order = c(1, 0, 1))}: the same without fitting first.
+\item \code{detect_outliers(y)}: the order is chosen by \code{auto.arima} with the course
+defaults (BIC, nonseasonal). The order selected in the presence of
+outliers can differ from the one chosen for the raw series.
+}
 
-**Supported models.** Univariate, nonseasonal ARIMA models of the series as
+\strong{Supported models.} Univariate, nonseasonal ARIMA models of the series as
 given, with an optional mean (d = 0) or drift (d = 1). Transform the series
 yourself (logs, growth rates) before calling the function. Models with other
-explanatory variables (`xreg`) or a Box-Cox transformation (`lambda`) are
+explanatory variables (\code{xreg}) or a Box-Cox transformation (\code{lambda}) are
 rejected, because the outlier effects and the adjusted series would then be
 defined on a different scale or conditional on other variables.
 
-**Interpretation.** AO, LS and TC are estimated intervention components of
+\strong{Interpretation.} AO, LS and TC are estimated intervention components of
 the modelled series, not proof of a cause. The reported standard errors and
 z-statistics treat the selected dates, types and model order as known; they
 are not adjusted for the search that selected them. The table comes from the
-final fit, so it matches [coefficient_diagnostics()] and can differ in the
-last decimals from the numbers printed by `tso()`.
+final fit, so it matches \code{\link[=coefficient_diagnostics]{coefficient_diagnostics()}} and can differ in the
+last decimals from the numbers printed by \code{tso()}.
 
-**Warnings and convergence.** Warnings from `tso()` (for example, iteration
+\strong{Warnings and convergence.} Warnings from \code{tso()} (for example, iteration
 limits reached during the search) are passed on as a single warning and kept
-in `$warnings`. If the final model did not converge, a warning is issued and
-`$converged` is `FALSE`.
+in \verb{$warnings}. If the final model did not converge, a warning is issued and
+\verb{$converged} is \code{FALSE}.
 
-**Collinearity.** Rank checking is switched on in `tso()`, so a candidate
+\strong{Collinearity.} Rank checking is switched on in \code{tso()}, so a candidate
 outlier that is numerically collinear with others is dropped instead of
 stopping the search. Collinear cases include an LS and a TC on the last
 observation (identical regressors), and an LS on the first observation
 together with a mean (or with differencing). An LS and a TC on the same
 interior date are distinct regressors, but become nearly collinear as
-`delta` approaches 1.
+\code{delta} approaches 1.
 
 Requires the 'tsoutliers' package.
 }

@@ -83,3 +83,24 @@ test_that("forecast plots build, with dates for quarterly ts", {
   expect_silent(ggplot2::ggplot_build(p2))
   expect_true(inherits(attr(dynamic_forecast(fit, 8), "time"), "Date"))
 })
+
+
+test_that("F1: Box-Cox fits are rejected by the forecasting functions", {
+  set.seed(301)
+  yb <- ts(exp(3 + as.numeric(arima.sim(list(ar = 0.6), n = 120, sd = 0.3))),
+           start = 1990, frequency = 4)
+  fb <- forecast::Arima(yb, order = c(1, 0, 0), lambda = 0)
+  expect_error(forecast_error_variance(fb, 5), "Box-Cox")
+  expect_error(dynamic_forecast(fb, 5), "Box-Cox")
+  expect_error(plot_forecast(fb, 5), "Box-Cox")
+  expect_error(plot_fan_chart(fb, 5), "Box-Cox")
+})
+
+test_that("F7: series with missing values are rejected by the forecasting functions", {
+  set.seed(311)
+  ym <- ts(as.numeric(arima.sim(list(ar = 0.8), n = 160)))
+  ym[141:160] <- NA
+  fm <- forecast::Arima(ym, order = c(1, 0, 0), include.mean = FALSE)
+  expect_error(dynamic_forecast(fm, 3), "missing values")
+  expect_error(forecast_error_variance(fm, 3), "missing values")
+})

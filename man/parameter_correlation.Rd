@@ -7,8 +7,8 @@
 parameter_correlation(fit)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 }
 \value{
 A numeric correlation matrix with coefficient names as dimnames.
@@ -19,6 +19,6 @@ imprecisely identified or that the model is overparameterized.
 }
 \details{
 Unlike Statsmodels, R does not report a covariance for the innovation
-variance, so `sigma2` is never included. Equivalent to
-`cov2cor(vcov(fit))`.
+variance, so \code{sigma2} is never included. Equivalent to
+\code{cov2cor(vcov(fit))}.
 }

@@ -13,37 +13,38 @@ outlier_regressors(
 )
 }
 \arguments{
-\item{y}{The series (preferably a `ts` object).}
+\item{y}{The series (preferably a \code{ts} object).}
 
-\item{dates}{Outlier dates, checked against the frequency of `y`.
-Quarterly series: `"2020Q2"` or `"2020:2"`; monthly: `"2008M09"` or
-`"2008:9"`; annual: `1990`. For these three frequencies, `Date` objects or
-strings like `"2008-09-01"` also work (the period containing the date).
-Decimal time (`2020.25`) works for any `ts` if it matches an observation.
-For other frequencies (weekly, daily), use `positions`.}
+\item{dates}{Outlier dates, checked against the frequency of \code{y}.
+Quarterly series: \code{"2020Q2"} or \code{"2020:2"}; monthly: \code{"2008M09"} or
+\code{"2008:9"}; annual: \code{1990}. For these three frequencies, \code{Date} objects or
+strings like \code{"2008-09-01"} also work (the period containing the date).
+Decimal time (\code{2020.25}) works for any \code{ts} if it matches an observation.
+For other frequencies (weekly, daily), use \code{positions}.}
 
-\item{types}{Outlier types, `"AO"`, `"LS"` or `"TC"`, recycled to the
+\item{types}{Outlier types, \code{"AO"}, \code{"LS"} or \code{"TC"}, recycled to the
 number of dates.}
 
 \item{delta}{Decay rate of temporary changes, in (0, 1).}
 
-\item{positions}{Alternative to `dates`: observation numbers.}
+\item{positions}{Alternative to \code{dates}: observation numbers.}
 }
 \value{
-A `ts` matrix with one column per outlier and the time attributes
-  of `y`; attribute `outliers` holds a table of type, period and position.
+A matrix with one column per outlier: a \code{ts} matrix with the time
+attributes of \code{y} when \code{y} is a \code{ts}, an ordinary matrix otherwise.
+Attribute \code{outliers} holds a table of type, period and position.
 }
 \description{
 Builds additive-outlier (AO), level-shift (LS) and temporary-change (TC)
 regressors at dates you choose, for example from known historical events,
-to be passed as `xreg` to [forecast::Arima()] or [forecast::auto.arima()].
+to be passed as \code{xreg} to \code{\link[forecast:Arima]{forecast::Arima()}} or \code{\link[forecast:auto.arima]{forecast::auto.arima()}}.
 For an outlier at observation t0, AO is 1 at t0 and 0 elsewhere; LS is 1
-from t0 onwards; TC is `delta^(t - t0)` from t0 onwards and 0 before.
+from t0 onwards; TC is \code{delta^(t - t0)} from t0 onwards and 0 before.
 }
 \details{
-Columns are named by type and period (`AO2020Q2`, `LS2008M09`, `TC1990`,
+Columns are named by type and period (\code{AO2020Q2}, \code{LS2008M09}, \code{TC1990},
 or the observation number for series without calendar time), so that
-[coefficient_diagnostics()], [joint_significance()] and [plot_outliers()]
+\code{\link[=coefficient_diagnostics]{coefficient_diagnostics()}}, \code{\link[=joint_significance]{joint_significance()}} and \code{\link[=plot_outliers]{plot_outliers()}}
 identify them.
 }
 \examples{

@@ -14,22 +14,22 @@ plot_parameter_stability(
 )
 }
 \arguments{
-\item{recursive}{Output of [recursive_estimation()].}
+\item{recursive}{Output of \code{\link[=recursive_estimation]{recursive_estimation()}}.}
 
-\item{parameters}{Character vector of terms to plot. `NULL` plots every
-coefficient except `sigma2`.}
+\item{parameters}{Character vector of terms to plot. \code{NULL} plots every
+coefficient except \code{sigma2}.}
 
 \item{reference}{Show the full-sample estimate?}
 
-\item{breakpoint}{Optional value on the `endpoint` scale (e.g. a `Date`, or
+\item{breakpoint}{Optional value on the \code{endpoint} scale (e.g. a \code{Date}, or
 an observation number for plain vectors).}
 
 \item{title}{Plot title.}
 
-\item{interactive}{If `TRUE`, return a plotly widget (requires 'plotly').}
+\item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
 }
 \value{
-A ggplot object (or a plotly widget when `interactive = TRUE`).
+A ggplot object (or a plotly widget when \code{interactive = TRUE}).
 }
 \description{
 One panel per parameter with the recursive estimate, its confidence band,

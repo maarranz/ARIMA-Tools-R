@@ -7,20 +7,20 @@
 common_roots(fit, tol = 0.05, exact_tol = 1e-10)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{tol}{Maximum distance between inverse roots to report a pair.}
 
 \item{exact_tol}{Distance at or below which a pair is "Common".}
 }
 \value{
-A data frame with columns `ar_root`, `ma_root`, `ar_inverse_root`,
-  `ma_inverse_root`, `distance` and `classification` (possibly zero rows).
+A data frame with columns \code{ar_root}, \code{ma_root}, \code{ar_inverse_root},
+\code{ma_inverse_root}, \code{distance} and \code{classification} (possibly zero rows).
 }
 \description{
 Pairs of AR and MA inverse roots whose distance in the complex plane is at
-most `tol`. Pairs within `exact_tol` are classified as "Common"; the rest as
+most \code{tol}. Pairs within \code{exact_tol} are classified as "Common"; the rest as
 "Near-common". Such pairs may indicate cancellation between the AR and MA
 polynomials and possible overparameterization.
 }

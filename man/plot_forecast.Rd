@@ -7,25 +7,25 @@
 plot_forecast(fit, steps = 20, level = 0.95, history = 50, interactive = FALSE)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{steps}{Number of horizons (positive integer).}
 
 \item{level}{Coverage of the central prediction interval.}
 
-\item{history}{Number of final observations to display (`NULL` = all).}
+\item{history}{Number of final observations to display (\code{NULL} = all).}
 
-\item{interactive}{If `TRUE`, return a plotly widget (requires 'plotly').}
+\item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
 }
 \value{
-A ggplot object (or a plotly widget when `interactive = TRUE`).
+A ggplot object (or a plotly widget when \code{interactive = TRUE}).
 }
 \description{
 Observed history, the point forecast (joined to the last observation), and
 two dashed interval boundaries; a dotted line marks the forecast origin.
-All numbers come from [dynamic_forecast()].
+All numbers come from \code{\link[=dynamic_forecast]{dynamic_forecast()}}.
 }
 \details{
-Related: `autoplot(forecast::forecast(fit))` draws Kalman-filter intervals.
+Related: \code{autoplot(forecast::forecast(fit))} draws Kalman-filter intervals.
 }

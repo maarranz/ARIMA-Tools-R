@@ -7,20 +7,23 @@
 dynamic_effects(fit, horizon = 20)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{horizon}{Maximum horizon (non-negative integer).}
 }
 \value{
-A data frame with columns `horizon`, `effect` and `cumulative`.
+A data frame with columns \code{horizon}, \code{effect} and \code{cumulative}.
 }
 \description{
-Psi weights of the fitted model for horizons 0 through `horizon`, and their
+Psi weights of the fitted model for horizons 0 through \code{horizon}, and their
 cumulative sum. For integrated models (ordinary or seasonal), the weights
 incorporate the differencing polynomial, so they are responses of the
 original (level) series and need not decay to zero.
 }
 \details{
-Related: [stats::ARMAtoMA()] for the stationary ARMA part only.
+Models with a Box-Cox transformation (\code{lambda}) are rejected: their psi
+weights would describe the transformed series, not the original one.
+
+Related: \code{\link[stats:ARMAtoMA]{stats::ARMAtoMA()}} for the stationary ARMA part only.
 }

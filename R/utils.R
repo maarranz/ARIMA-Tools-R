@@ -130,12 +130,57 @@
   r[is.finite(r)]
 }
 
-# k counts the free ARMA/deterministic coefficients plus the innovation
-# variance, as in Statsmodels and forecast::Arima.
+# Residuals for diagnostics that rely on consecutive lags (ACF, PACF,
+# Ljung-Box): gaps inside the sample would make non-adjacent residuals look
+# adjacent, so they are rejected.
+.resid_consecutive <- function(fit) {
+  r <- as.numeric(stats::residuals(fit))
+  ok <- is.finite(r)
+  if (!any(ok)) stop("The model has no finite residuals.", call. = FALSE)
+  span <- which(ok)
+  if (any(!ok[min(span):max(span)])) {
+    stop("The residuals contain missing values inside the sample (the series has ",
+         "gaps). Autocorrelation diagnostics need a complete sequence.",
+         call. = FALSE)
+  }
+  r[ok]
+}
+
+# Reject Box-Cox fits where a function's results would mix scales.
+.reject_lambda <- function(fit, what) {
+  if (!is.null(fit$lambda)) {
+    stop(what, " does not support models with a Box-Cox transformation ",
+         "(lambda): its results would mix the transformed and original scales. ",
+         "Transform the series yourself (e.g. log(y)) and fit the model without ",
+         "`lambda`.", call. = FALSE)
+  }
+  invisible(fit)
+}
+
+# Was the model estimated by conditional sum of squares only (no likelihood)?
+.is_css <- function(fit) {
+  is.null(fit$aic) || is.na(fit$aic)
+}
+
+# Names in `dots` resolved by partial matching against the formals of `fun`;
+# unmatched names are returned unchanged.
+.resolve_dot_names <- function(dots, fun) {
+  nm <- names(dots)
+  if (is.null(nm) || any(!nzchar(nm))) {
+    if (length(dots)) stop("Arguments passed through `...` must be named.",
+                           call. = FALSE)
+    return(character(0))
+  }
+  fn <- names(formals(fun))
+  hit <- pmatch(nm, fn, duplicates.ok = TRUE)
+  ifelse(is.na(hit), nm, fn[hit])
+}
+
 .ic_values <- function(fit) {
   n <- as.numeric(fit$nobs)
   k <- sum(.free(fit)) + 1
-  ll <- as.numeric(fit$loglik)
+  # CSS fits have no likelihood: criteria are not available.
+  ll <- if (.is_css(fit)) NA_real_ else as.numeric(fit$loglik)
   aic <- -2 * ll + 2 * k
   aicc <- if (n - k - 1 > 0) aic + 2 * k * (k + 1) / (n - k - 1) else NA_real_
   list(

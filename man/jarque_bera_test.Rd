@@ -7,15 +7,15 @@
 jarque_bera_test(fit)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 }
 \value{
-A named list of class `arimatools_summary`.
+A named list of class \code{arimatools_summary}.
 }
 \description{
 The statistic uses the (biased) sample skewness and kurtosis, as in
-`tseries::jarque.bera.test()` and SciPy. The reported skewness and kurtosis
+\code{tseries::jarque.bera.test()} and SciPy. The reported skewness and kurtosis
 are the bias-corrected versions; kurtosis is on the scale where the Normal
 distribution has kurtosis 3.
 }

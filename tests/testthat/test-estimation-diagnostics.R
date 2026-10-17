@@ -106,3 +106,42 @@ test_that("recursive estimation: windows, columns and plot", {
   expect_s3_class(p, "ggplot")
   expect_error(plot_parameter_stability(rec, "ar7"), "Unknown")
 })
+
+
+test_that("F1: Box-Cox fits are rejected by dynamic effects", {
+  set.seed(301)
+  yb <- ts(exp(3 + as.numeric(arima.sim(list(ar = 0.6), n = 120, sd = 0.3))),
+           start = 1990, frequency = 4)
+  fb <- forecast::Arima(yb, order = c(1, 0, 0), lambda = 0)
+  expect_error(dynamic_effects(fb), "Box-Cox")
+  expect_error(plot_dynamic_effects(fb), "Box-Cox")
+})
+
+test_that("F5: residual gaps are rejected by autocorrelation diagnostics", {
+  set.seed(305)
+  yg <- ts(as.numeric(arima.sim(list(ar = 0.6), n = 100)))
+  yg[seq(10, 90, 10)] <- NA
+  fg <- forecast::Arima(yg, order = c(1, 0, 0))
+  expect_error(residual_correlations(fg, lags = 5), "inside the sample")
+  expect_error(ljung_box_test(fg, 5), "inside the sample")
+  expect_error(plot_residual_diagnostics(fg), "inside the sample")
+  expect_s3_class(jarque_bera_test(fg), "arimatools_summary")
+})
+
+test_that("F6: recursive estimation rejects xreg and keeps failure reasons", {
+  set.seed(304)
+  Z <- cbind(z = rnorm(80))
+  yz <- ts(0.6 * Z[, 1] + rnorm(80))
+  expect_error(recursive_estimation(yz, c(0, 0, 0), initial = 60, xreg = Z), "xreg")
+  expect_error(recursive_estimation(yz, c(0, 0, 0), initial = 60, xr = Z), "xreg")
+  expect_error(recursive_estimation(yz, c(0, 0, 0), initial = 60, lambda = 0), "lambda")
+  rec <- recursive_estimation(y, c(1, 0, 1), initial = 590)
+  expect_s3_class(attr(rec, "failures"), "data.frame")
+  expect_equal(nrow(attr(rec, "failures")), 0L)
+})
+
+test_that("F10: fractional or invalid Ljung-Box lags are rejected", {
+  expect_error(ljung_box_test(fit, 10.9), "positive integers")
+  expect_error(ljung_box_test(fit, c(5, NA)), "positive integers")
+  expect_error(ljung_box_test(fit, "10"), "positive integers")
+})

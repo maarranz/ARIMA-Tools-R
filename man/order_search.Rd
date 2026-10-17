@@ -16,7 +16,7 @@ order_search(
 )
 }
 \arguments{
-\item{y}{A numeric vector or `ts` object.}
+\item{y}{A numeric vector or \code{ts} object.}
 
 \item{p_max, q_max}{Maximum AR and MA orders.}
 
@@ -24,23 +24,27 @@ order_search(
 
 \item{criterion}{One of "AIC", "AICc", "BIC", "HQIC" (case-insensitive).}
 
-\item{include.constant}{See [recursive_estimation()].}
+\item{include.constant}{See \code{\link[=recursive_estimation]{recursive_estimation()}}.}
 
-\item{...}{Further arguments for [forecast::Arima()] (e.g. `method = "ML"`).}
+\item{...}{Further arguments for \code{\link[forecast:Arima]{forecast::Arima()}} (e.g. \code{method = "ML"}).}
 }
 \value{
-A data frame with columns `model`, `p`, `d`, `q`, `n`, `k`,
-  `loglik`, `AIC`, `AICc`, `BIC`, `HQIC`, `converged` and `status`.
+A data frame with columns \code{model}, \code{p}, \code{d}, \code{q}, \code{n}, \code{k},
+\code{loglik}, \code{AIC}, \code{AICc}, \code{BIC}, \code{HQIC}, \code{converged} and \code{status}.
 }
 \description{
 Estimates every ARIMA(p,d,q) with p = 0..p_max, q = 0..q_max and
-d = d_min..d_max by [forecast::Arima()], and reports all four information
-criteria. Converged models come first, sorted by `criterion`; models that
-did not converge or failed stay visible at the bottom.
+d = d_min..d_max by \code{\link[forecast:Arima]{forecast::Arima()}}, and reports all four information
+criteria. It estimates and reports; choosing a model is left to
+\code{\link[=select_model]{select_model()}}. Rows are grouped by d and, within each d, sorted by
+\code{criterion} with converged models first; models that did not converge or
+failed stay visible.
 }
 \details{
-No unit-root test is performed: the range of d is the user's choice.
+No unit-root test is performed: the range of d is the user's choice. A
+range of d is allowed for inspection, but criteria are comparable only
+within the same d, and \code{\link[=select_model]{select_model()}} requires \verb{d =} for such tables.
+With \code{method = "CSS"} there is no likelihood, so the criteria are \code{NA}.
 
-Related: `forecast::auto.arima(y, stepwise = FALSE, approximation = FALSE,
-trace = TRUE)` prints a similar search but does not return the table.
+Related: \code{forecast::auto.arima(y, stepwise = FALSE, approximation = FALSE, trace = TRUE)} prints a similar search but does not return the table.
 }

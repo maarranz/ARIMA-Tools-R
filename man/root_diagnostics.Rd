@@ -7,12 +7,12 @@
 root_diagnostics(fit)
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 }
 \value{
-A data frame with columns `type`, `root`, `value` (complex),
-  `modulus`, `inverse_root` (complex) and `inverse_modulus`.
+A data frame with columns \code{type}, \code{root}, \code{value} (complex),
+\code{modulus}, \code{inverse_root} (complex) and \code{inverse_modulus}.
 }
 \description{
 Roots of the AR and MA polynomials of the stationary ARMA component of a
@@ -23,7 +23,7 @@ Seasonal models use the expanded (multiplied) polynomials. AR roots outside
 the unit circle imply causality; MA roots outside the unit circle imply
 invertibility. Equivalently, the inverse roots lie inside the unit circle.
 
-Related: `forecast::autoplot(fit)` plots the same inverse roots.
+Related: \code{forecast::autoplot(fit)} plots the same inverse roots.
 }
 \examples{
 set.seed(12345)

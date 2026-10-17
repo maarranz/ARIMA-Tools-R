@@ -13,8 +13,8 @@ plot_inverse_roots(
 )
 }
 \arguments{
-\item{fit}{A fitted model from [forecast::Arima()], [forecast::auto.arima()]
-or [stats::arima()].}
+\item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
+or \code{\link[stats:arima]{stats::arima()}}.}
 
 \item{tol}{Maximum distance between inverse roots to report a pair.}
 
@@ -22,10 +22,10 @@ or [stats::arima()].}
 
 \item{title}{Plot title.}
 
-\item{interactive}{If `TRUE`, return a plotly widget (requires 'plotly').}
+\item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
 }
 \value{
-A ggplot object (or a plotly widget when `interactive = TRUE`).
+A ggplot object (or a plotly widget when \code{interactive = TRUE}).
 }
 \description{
 Inverse roots against the unit circle: AR as squares, MA as circles, and
@@ -33,6 +33,6 @@ common or near-common pairs marked with a cross at the midpoint of the pair.
 The axis range expands automatically if a root lies outside the circle.
 }
 \details{
-Related: `forecast::autoplot(fit)` draws the inverse roots in separate AR and
+Related: \code{forecast::autoplot(fit)} draws the inverse roots in separate AR and
 MA panels, without the common-root markers.
 }

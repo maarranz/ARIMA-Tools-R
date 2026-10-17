@@ -5,7 +5,8 @@
 #' Ljung-Box statistics at one or several lags, with degrees of freedom
 #' adjusted for the number of estimated ARMA coefficients,
 #' `df = h - (p + q + P + Q)`. Lags with non-positive degrees of freedom are
-#' rejected.
+#' rejected. Models whose residuals have gaps inside the sample are rejected,
+#' because the test assumes consecutive residuals.
 #'
 #' Related: `stats::Box.test(residuals(fit), lag = h, type = "Ljung-Box",
 #' fitdf = p + q)` for one lag; `forecast::checkresiduals(fit)`.
@@ -16,10 +17,11 @@
 #' @export
 ljung_box_test <- function(fit, lags) {
   .check_fit(fit)
-  lags <- as.integer(lags)
-  if (length(lags) == 0L || anyNA(lags) || any(lags <= 0)) {
+  if (!is.numeric(lags) || length(lags) == 0L || anyNA(lags) ||
+      any(!is.finite(lags)) || any(lags != round(lags)) || any(lags <= 0)) {
     stop("All lags must be positive integers.", call. = FALSE)
   }
+  lags <- as.integer(lags)
   o <- .orders(fit)
   model_df <- o$p + o$q + o$P + o$Q
   bad <- lags[lags <= model_df]
@@ -28,7 +30,7 @@ ljung_box_test <- function(fit, lags) {
          "coefficients (", model_df, "). Invalid lag(s): ",
          paste(bad, collapse = ", "), call. = FALSE)
   }
-  r <- .resid(fit)
+  r <- .resid_consecutive(fit)
   res <- lapply(lags, function(h) {
     bt <- stats::Box.test(r, lag = h, type = "Ljung-Box", fitdf = model_df)
     c(unname(bt$statistic), unname(bt$parameter), bt$p.value)
@@ -42,6 +44,8 @@ ljung_box_test <- function(fit, lags) {
 #'
 #' Lag zero is omitted. The bounds are the individual approximate white-noise
 #' bounds +/- z / sqrt(T); they are not a joint test (use [ljung_box_test()]).
+#' Residuals with gaps inside the sample are rejected, because the lags would
+#' no longer correspond to calendar distances.
 #'
 #' @inheritParams root_diagnostics
 #' @param lags Maximum lag.
@@ -52,7 +56,7 @@ residual_correlations <- function(fit, lags = 20, confidence = 0.95) {
   .check_fit(fit)
   lags <- .check_count(lags, "lags", min = 1)
   .check_level(confidence)
-  r <- .resid(fit)
+  r <- .resid_consecutive(fit)
   n <- length(r)
   if (lags >= n) {
     stop("`lags` must be smaller than the number of residuals (", n, ").",
@@ -198,6 +202,9 @@ jarque_bera_test <- function(fit) {
 #' incorporate the differencing polynomial, so they are responses of the
 #' original (level) series and need not decay to zero.
 #'
+#' Models with a Box-Cox transformation (`lambda`) are rejected: their psi
+#' weights would describe the transformed series, not the original one.
+#'
 #' Related: [stats::ARMAtoMA()] for the stationary ARMA part only.
 #'
 #' @inheritParams root_diagnostics
@@ -207,6 +214,7 @@ jarque_bera_test <- function(fit) {
 dynamic_effects <- function(fit, horizon = 20) {
   .check_fit(fit)
   horizon <- .check_count(horizon, "horizon", min = 0)
+  .reject_lambda(fit, "dynamic_effects()")
   psi <- .psi_weights(fit, horizon + 1L)
   data.frame(horizon = 0:horizon, effect = psi, cumulative = cumsum(psi))
 }
@@ -276,14 +284,24 @@ plot_dynamic_effects <- function(fit, horizon = 20,
 #'   keeps forecast's default: a mean when d = 0, no constant when d > 0.
 #'   `TRUE` gives a mean when d = 0 and a drift when d = 1; `FALSE` none.
 #' @param ... Further arguments for [forecast::Arima()] (e.g. `method`).
+#'   External regressors (`xreg`) and Box-Cox transformations (`lambda`) are
+#'   not supported.
 #' @return A long data frame with columns `endpoint`, `n`, `term`, `estimate`,
 #'   `std.error`, `conf.low`, `conf.high` and `converged`. `endpoint` is a
 #'   `Date` for monthly, quarterly and annual `ts` objects, decimal time for
-#'   other `ts`, and the observation number otherwise.
+#'   other `ts`, and the observation number otherwise. Endpoints where
+#'   estimation failed have one row with missing values; the error messages are
+#'   kept in `attr(result, "failures")`.
 #' @export
 recursive_estimation <- function(y, order, initial = NULL, min_df = 20,
                                  confidence = 0.95, include.constant = NULL,
                                  ...) {
+  dot_names <- .resolve_dot_names(list(...), forecast::Arima)
+  if (any(c("xreg", "lambda", "y", "order") %in% dot_names)) {
+    stop("recursive_estimation() supports univariate models without Box-Cox ",
+         "transformation: `xreg` and `lambda` cannot be passed through `...` ",
+         "(and `y`, `order` are set by the function).", call. = FALSE)
+  }
   if (!is.numeric(order) || length(order) != 3L ||
       any(!vapply(order, .is_count, logical(1)))) {
     stop("`order` must be c(p, d, q) with non-negative integers.", call. = FALSE)
@@ -339,12 +357,14 @@ recursive_estimation <- function(y, order, initial = NULL, min_df = 20,
                 frequency = stats::frequency(y))
     } else y[seq_len(end)]
     fit <- tryCatch(.fit_arima(ys, order, include.constant, ...),
-                    error = function(e) NULL)
-    if (is.null(fit)) {
-      return(data.frame(endpoint = times[end], n = end, term = NA_character_,
-                        estimate = NA_real_, std.error = NA_real_,
-                        conf.low = NA_real_, conf.high = NA_real_,
-                        converged = FALSE, stringsAsFactors = FALSE))
+                    error = function(e) conditionMessage(e))
+    if (is.character(fit)) {
+      return(structure(
+        data.frame(endpoint = times[end], n = end, term = NA_character_,
+                   estimate = NA_real_, std.error = NA_real_,
+                   conf.low = NA_real_, conf.high = NA_real_,
+                   converged = FALSE, stringsAsFactors = FALSE),
+        failure = fit))
     }
     est <- .free_coef(fit)
     se <- if (length(est)) sqrt(diag(fit$var.coef)) else numeric(0)
@@ -359,8 +379,16 @@ recursive_estimation <- function(y, order, initial = NULL, min_df = 20,
       stringsAsFactors = FALSE
     )
   })
+  failed <- vapply(rows, function(r) !is.null(attr(r, "failure")), logical(1))
+  failures <- if (any(failed)) {
+    data.frame(n = vapply(rows[failed], function(r) r$n[1], numeric(1)),
+               message = vapply(rows[failed], function(r) attr(r, "failure"),
+                                character(1)),
+               stringsAsFactors = FALSE)
+  } else data.frame(n = numeric(0), message = character(0))
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
+  attr(out, "failures") <- failures
   attr(out, "order") <- order
   attr(out, "confidence") <- confidence
   out

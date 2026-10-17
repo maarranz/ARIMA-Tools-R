@@ -8,7 +8,9 @@
 #' HQIC = -2 logL + 2k log log n.
 #'
 #' Criteria are comparable only across models for the same dependent variable
-#' and the same effective sample (in particular, the same d).
+#' and the same effective sample (in particular, the same d). Fits estimated by
+#' conditional sum of squares (`method = "CSS"`) have no likelihood, so their
+#' criteria are reported as `NA`.
 #'
 #' @param ... Two or more fitted ARIMA models (optionally named).
 #' @param names Optional model labels; overrides argument names.
@@ -48,10 +50,15 @@ compare_models <- function(..., names = NULL) {
 #'
 #' Estimates every ARIMA(p,d,q) with p = 0..p_max, q = 0..q_max and
 #' d = d_min..d_max by [forecast::Arima()], and reports all four information
-#' criteria. Converged models come first, sorted by `criterion`; models that
-#' did not converge or failed stay visible at the bottom.
+#' criteria. It estimates and reports; choosing a model is left to
+#' [select_model()]. Rows are grouped by d and, within each d, sorted by
+#' `criterion` with converged models first; models that did not converge or
+#' failed stay visible.
 #'
-#' No unit-root test is performed: the range of d is the user's choice.
+#' No unit-root test is performed: the range of d is the user's choice. A
+#' range of d is allowed for inspection, but criteria are comparable only
+#' within the same d, and [select_model()] requires `d =` for such tables.
+#' With `method = "CSS"` there is no likelihood, so the criteria are `NA`.
 #'
 #' Related: `forecast::auto.arima(y, stepwise = FALSE, approximation = FALSE,
 #' trace = TRUE)` prints a similar search but does not return the table.
@@ -82,7 +89,8 @@ order_search <- function(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0,
       fit <- .fit_arima(y, o, include.constant, ...)
       ic <- .ic_values(fit)
       conv <- .converged(fit)
-      status <- if (!conv) "Not converged" else if (isTRUE(attr(fit, "ml_fallback")))
+      status <- if (.is_css(fit)) "CSS fit: no likelihood, criteria not available"
+        else if (!conv) "Not converged" else if (isTRUE(attr(fit, "ml_fallback")))
         "OK (ML after CSS-ML failed)" else "OK"
       data.frame(n = ic$n, k = ic$k, loglik = ic$loglik, AIC = ic$AIC,
                  AICc = ic$AICc, BIC = ic$BIC, HQIC = ic$HQIC,
@@ -97,30 +105,78 @@ order_search <- function(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0,
                      stringsAsFactors = FALSE), res)
   })
   out <- do.call(rbind, rows)
-  out <- out[order(!out$converged, out[[crit]], na.last = TRUE), ]
+  # Report, do not rank across d: group by d, then order by the criterion
+  # within each d (converged fits first).
+  out <- out[order(out$d, !out$converged, out[[crit]], na.last = TRUE), ]
   rownames(out) <- NULL
   attr(out, "criterion") <- crit
+  if (d_max > d_min) {
+    message("Note: information criteria are comparable only among models with ",
+            "the same d (same effective sample). Choose d first; ",
+            "select_model() then needs `d =`.")
+  }
   out
 }
 
 #' Select the model that minimizes an information criterion
 #'
-#' Non-converged models (if a `converged` column exists) and non-finite values
-#' are excluded. The minimum criterion says nothing about residual adequacy or
-#' parameter stability.
+#' This is the only function in the package that chooses a model;
+#' [order_search()] and [compare_models()] only estimate and report. Before
+#' choosing, it checks that the criteria are comparable. Non-converged models
+#' (if a `converged` column exists) and non-finite values are excluded. The
+#' minimum criterion says nothing about residual adequacy or parameter
+#' stability.
+#'
+#' Information criteria are comparable only among models with the same order
+#' of differencing d, because differencing changes the effective sample. The
+#' order of integration should be chosen first (unit-root tests, graphs,
+#' correlograms). If the table contains models with different d,
+#' `select_model()` stops unless `d` says which d to select within. It also
+#' stops if the remaining candidates were estimated on different numbers of
+#' observations. It cannot check that the dependent variable is the same; that
+#' remains the user's responsibility.
+#'
+#' Fits estimated by conditional sum of squares (`method = "CSS"`) have no
+#' likelihood; their criteria are `NA` and they are never selected.
 #'
 #' @param table Output of [compare_models()] or [order_search()].
 #' @param criterion One of "AIC", "AICc", "BIC", "HQIC".
+#' @param d Order of differencing to select within. Needed only when the table
+#'   contains several values of d.
 #' @return The selected row, as a one-row data frame.
 #' @export
-select_model <- function(table, criterion = "BIC") {
+select_model <- function(table, criterion = "BIC", d = NULL) {
   crit <- .match_criterion(criterion)
   if (!crit %in% names(table)) {
     stop("The table does not contain a '", crit, "' column.", call. = FALSE)
   }
-  ok <- is.finite(table[[crit]])
+  dd <- if ("d" %in% names(table)) {
+    table$d
+  } else if ("order" %in% names(table)) {
+    as.integer(sub("^\\([0-9]+,([0-9]+),[0-9]+\\)$", "\\1", table$order))
+  } else NULL
+  keep <- rep(TRUE, nrow(table))
+  if (!is.null(d)) {
+    d <- .check_count(d, "d")
+    if (is.null(dd)) stop("The table has no information on d.", call. = FALSE)
+    keep <- !is.na(dd) & dd == d
+    if (!any(keep)) stop("No models with d = ", d, " in the table.", call. = FALSE)
+  } else if (!is.null(dd) && length(unique(stats::na.omit(dd))) > 1) {
+    stop("The table contains models with different orders of differencing (d = ",
+         paste(sort(unique(stats::na.omit(dd))), collapse = ", "), "). ",
+         "Information criteria are not comparable across d, because the ",
+         "effective sample differs. Choose d first and use `d =`, e.g. ",
+         "select_model(table, \"", crit, "\", d = 1).", call. = FALSE)
+  }
+  ok <- keep & is.finite(table[[crit]])
   if ("converged" %in% names(table)) ok <- ok & table$converged
   if (!any(ok)) stop("No eligible models with finite ", crit, " values.", call. = FALSE)
+  if ("n" %in% names(table) && length(unique(table$n[ok])) > 1) {
+    stop("The candidate models were estimated on different numbers of ",
+         "observations (n = ", paste(sort(unique(table$n[ok])), collapse = ", "),
+         "). Information criteria are comparable only on the same sample.",
+         call. = FALSE)
+  }
   idx <- which(ok)[which.min(table[[crit]][ok])]
   table[idx, , drop = FALSE]
 }

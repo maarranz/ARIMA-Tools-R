@@ -475,20 +475,30 @@ labelled by their order, by argument names
 <code>names</code>. Its table includes the log likelihood, AIC, AICc,
 BIC, and HQIC, with k counting the innovation variance. Compare models
 for the same dependent variable and sample.</p>
-<p><code>order_search()</code> estimates every order from zero to
+<p>The two operations are kept separate. <code>order_search()</code>
+<strong>estimates and reports</strong>: it fits every order from zero to
 <code>p_max</code>/<code>q_max</code>, and differencing orders from
-<code>d_min</code> through <code>d_max</code> (both default to zero).
-<code>criterion</code> sorts the table; convergence status is retained.
-If the default CSS-ML estimation fails for a candidate, exact ML is
-tried and the status says so. <code>select_model()</code> returns the
-eligible row minimizing AIC, AICc, BIC, or HQIC, excluding non-converged
-models. Selection is not a diagnostic assessment.</p>
+<code>d_min</code> through <code>d_max</code> (both default to zero),
+and reports all four criteria and the convergence status. Rows are
+grouped by d and sorted by <code>criterion</code> within each d; it
+never ranks models across different d. If the default CSS-ML estimation
+fails for a candidate, exact ML is tried and the status says so.
+<code>select_model()</code> is the only function that
+<strong>chooses</strong>, and it does so only when the criteria are
+comparable: models with the same d (choose d first, with unit-root tests
+and graphs; if the table has several d, <code>select_model()</code> asks
+for <code>d =</code>), estimated on the same number of observations,
+converged, and with a genuine likelihood (CSS-only fits have
+<code>NA</code> criteria). It cannot check that the dependent variable
+is the same. Selection is not a diagnostic assessment.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alternative <span class="ot">&lt;-</span> <span class="fu">Arima</span>(y, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="at">include.mean =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>comparison <span class="ot">&lt;-</span> <span class="fu">compare_models</span>(fit, alternative, <span class="at">names =</span> <span class="fu">c</span>(<span class="st">&quot;ARMA(1,1)&quot;</span>, <span class="st">&quot;AR(1)&quot;</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>search <span class="ot">&lt;-</span> <span class="fu">order_search</span>(y, <span class="at">p_max =</span> <span class="dv">2</span>, <span class="at">q_max =</span> <span class="dv">2</span>, <span class="at">criterion =</span> <span class="st">&quot;BIC&quot;</span>,</span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>                       <span class="at">include.constant =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>selected <span class="ot">&lt;-</span> <span class="fu">select_model</span>(search, <span class="at">criterion =</span> <span class="st">&quot;BIC&quot;</span>)</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(selected)</span></code></pre></div>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co"># With several d in the grid, choose d first:</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># select_model(order_search(y, d_min = 0, d_max = 1), &quot;BIC&quot;, d = 0)</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(selected)</span></code></pre></div>
 <p>Deterministic terms are set with <code>include.constant</code>
 (passed to <code>forecast::Arima()</code>): <code>NULL</code> keeps
 forecast’s default (a mean when d = 0, nothing when d &gt; 0, matching
@@ -511,8 +521,9 @@ parameter stability</h2>
 model and their cumulative sums, from horizon zero through
 <code>horizon = 20</code>. The differencing polynomial (ordinary and
 seasonal) is included, so a fitted random walk has a unit response at
-every horizon. <code>plot_dynamic_effects()</code> plots both
-series.</p>
+every horizon. <code>plot_dynamic_effects()</code> plots both series.
+Models with a Box–Cox transformation (<code>lambda</code>) are rejected,
+because their psi weights describe the transformed series.</p>
 <p><code>recursive_estimation()</code> takes the original series and an
 order <code>c(p, d, q)</code> and returns a long expanding-window table
 with estimates, standard errors, intervals, sample endpoints, and
@@ -521,7 +532,10 @@ convergence status, plus the recursive innovation variance
 observation count, a fraction between zero and one, or <code>NULL</code>
 (an automatic 10% rule subject to <code>min_df = 20</code>). Endpoints
 are dates for monthly, quarterly and annual <code>ts</code> objects and
-observation numbers for plain vectors.</p>
+observation numbers for plain vectors. External regressors
+(<code>xreg</code>) and <code>lambda</code> are not supported; endpoints
+where estimation failed keep their error messages in
+<code>attr(recursive, &quot;failures&quot;)</code>.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>effects <span class="ot">&lt;-</span> <span class="fu">dynamic_effects</span>(fit, <span class="at">horizon =</span> <span class="dv">12</span>)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>effects_plot <span class="ot">&lt;-</span> <span class="fu">plot_dynamic_effects</span>(fit, <span class="at">horizon =</span> <span class="dv">12</span>)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>recursive <span class="ot">&lt;-</span> <span class="fu">recursive_estimation</span>(y, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="at">initial =</span> <span class="dv">220</span>,</span>
@@ -546,9 +560,12 @@ weights, including ordinary/seasonal integration, on the original
 scale.</li>
 <li><code>dynamic_forecast()</code> returns a data frame with
 <code>horizon</code>, <code>forecast</code>, <code>fev</code>,
-<code>se</code>, <code>lower</code> and <code>upper</code>. Point
-forecasts come from <code>forecast::forecast()</code>; uncertainty from
-the psi-weight FEV.</li>
+<code>se</code>, <code>lower</code> and <code>upper</code>. These are
+single-origin forecasts: all horizons are made from the end of the
+sample, with unknown future innovations set to zero, and are not updated
+as new data arrive. Point forecasts come from
+<code>forecast::forecast()</code>; uncertainty from the psi-weight
+FEV.</li>
 <li><code>plot_forecast()</code> draws the observed series, the
 forecast, two <strong>unfilled interval boundary lines</strong>, and a
 forecast-origin marker.</li>
@@ -567,16 +584,24 @@ order. <code>history = 50</code> shows the final 50 observations and
 <code>history = NULL</code> the whole sample.</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>custom_fan <span class="ot">&lt;-</span> <span class="fu">plot_fan_chart</span>(fit, <span class="at">steps =</span> <span class="dv">12</span>, <span class="at">levels =</span> <span class="fu">c</span>(<span class="fl">0.95</span>, <span class="fl">0.50</span>, <span class="fl">0.80</span>),</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                             <span class="at">history =</span> <span class="cn">NULL</span>)</span></code></pre></div>
-<p>FEV treats fitted parameters and past innovations as known, so
-parameter-estimation uncertainty is not included, and the exact
-Kalman-filter variances of <code>predict()</code> can differ slightly in
-short samples. The innovation variance is <code>fit$sigma2</code>:
-<code>forecast::Arima()</code> reports the degrees-of-freedom-adjusted
-SSR / (n − number of coefficients), whereas <code>stats::arima()</code>
-and Statsmodels report the ML estimate SSR / n. Using
-<code>fit$sigma2</code> keeps these intervals consistent with
-<code>forecast(fit)</code> for the same object. Models with external
-regressors other than drift are outside the forecasting interface.</p>
+<p>The intervals are Gaussian and conditional on the estimated
+parameters and the selected model: parameter and model-selection
+uncertainty are not included. FEV treats past innovations as known, so
+the exact Kalman-filter variances of <code>predict()</code> can differ
+slightly in short samples. The innovation variance is
+<code>fit$sigma2</code>: <code>forecast::Arima()</code> reports the
+degrees-of-freedom-adjusted SSR / (n′ − number of coefficients), where
+n′ is the number of observations after differencing, whereas
+<code>stats::arima()</code> and Statsmodels report the ML estimate SSR /
+n′. Using <code>fit$sigma2</code> keeps these intervals consistent with
+<code>forecast(fit)</code> for the same object.</p>
+<p>Three cases are rejected with an explanation: models with external
+regressors other than drift (including outlier regressors); models with
+a Box–Cox transformation (<code>lambda</code>), whose point forecasts
+are on the original scale while the variances would be on the
+transformed scale; and series with missing values, where the assumption
+of known past innovations fails and the intervals would be too narrow
+(use <code>forecast::forecast()</code> in that case).</p>
 <h2 id="outliers">Outliers</h2>
 <p>Three outlier types are supported, for nonseasonal models: an
 <strong>additive outlier</strong> (AO) is 1 at its date and 0 elsewhere;
@@ -622,11 +647,16 @@ automatic and hand-picked outliers can be shown side by side.</p>
 handles univariate, nonseasonal ARIMA models of the series as given,
 with an optional mean (d = 0) or drift (d = 1). Transform the series
 yourself (logs, growth rates) before calling it. Models with explanatory
-variables (<code>xreg</code>) or a Box–Cox transformation
-(<code>lambda</code>) are rejected, in both
-<code>detect_outliers()</code> and <code>plot_outliers()</code>, because
-the effects and the adjusted series would be defined on another scale or
-conditional on other variables.</p>
+variables (<code>xreg</code>), a Box–Cox transformation
+(<code>lambda</code>) or fixed coefficients are rejected, because the
+effects and the adjusted series would be defined on another scale or
+conditional on other variables, or the constraints would be lost.
+Argument names in <code>...</code> are matched as <code>tso()</code>
+would match them, so abbreviations such as <code>xr</code> are caught
+too, and a regressor named <code>drift</code> is accepted only if it is
+the built-in linear trend. <code>plot_outliers()</code> rejects
+<code>lambda</code> models; for a model fitted by hand it plots the
+AO/LS/TC columns and ignores any other regressors.</p>
 <p><strong>Warnings and convergence.</strong> Warnings from
 <code>tso()</code>, such as an iteration limit reached during the
 search, are passed on as one warning and kept in <code>$warnings</code>;
@@ -737,8 +767,9 @@ effects</td>
 criteria</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;"><code>select_model(table, criterion = &quot;BIC&quot;)</code></td>
-<td style="text-align: left;">one-row data frame: selected model</td>
+<td style="text-align: left;"><code>select_model(table, criterion = &quot;BIC&quot;, d = NULL)</code></td>
+<td style="text-align: left;">one-row data frame: selected model
+(comparable candidates only)</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>order_search(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0, criterion = &quot;BIC&quot;, include.constant = NULL, ...)</code></td>
@@ -813,7 +844,7 @@ This API reference is not a substitute for either.</p>
 README</a></li>
 <li><a href="https://github.com/maarranz/ARIMA-Tools">Python version:
 ARIMA-Tools</a></li>
-<li><a href="https://github.com/maarranz/ARIMA-Tools-R/blob/main/LICENSE">MIT
+<li><a href="https://github.com/maarranz/ARIMA-Tools-R/blob/main/LICENSE.md">MIT
 License</a></li>
 <li><a href="arimatools_Documentation.qmd">Quarto source</a></li>
 </ul>

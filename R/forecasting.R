@@ -13,10 +13,13 @@
 #' missing values); for typical samples the two coincide to many decimals.
 #'
 #' The innovation variance is `fit$sigma2`. Note that [forecast::Arima()]
-#' reports a degrees-of-freedom-adjusted variance, SSR / (n - number of
-#' coefficients), whereas [stats::arima()] and Statsmodels report the ML
-#' estimate SSR / n. Using `fit$sigma2` keeps these intervals consistent with
+#' reports a degrees-of-freedom-adjusted variance, SSR / (n' - number of
+#' coefficients), where n' is the number of observations after differencing,
+#' whereas [stats::arima()] and Statsmodels report the ML estimate SSR / n'. Using `fit$sigma2` keeps these intervals consistent with
 #' `forecast::forecast(fit)` for the same object.
+#'
+#' Models with a Box-Cox transformation (`lambda`) and series with missing
+#' values are rejected (see Details of [dynamic_forecast()]).
 #'
 #' @inheritParams root_diagnostics
 #' @param steps Number of horizons (positive integer).
@@ -25,6 +28,8 @@
 forecast_error_variance <- function(fit, steps = 20) {
   .check_fit(fit)
   steps <- .check_count(steps, "steps", min = 1)
+  .reject_lambda(fit, "forecast_error_variance()")
+  .check_complete_history(fit)
   sigma2 <- fit$sigma2
   if (!is.finite(sigma2) || sigma2 < 0) {
     stop("The estimated innovation variance must be finite and non-negative.",
@@ -39,8 +44,17 @@ forecast_error_variance <- function(fit, steps = 20) {
 #' automatically); uncertainty from [forecast_error_variance()], not from the
 #' Kalman filter.
 #'
-#' Models with external regressors other than drift cannot be forecast through
-#' this interface.
+#' These are single-origin forecasts: all horizons are made from the end of
+#' the sample, with unknown future innovations set to zero; they are not
+#' re-estimated or updated as new observations arrive. The intervals are
+#' Gaussian, conditional on the estimated parameters and the selected model;
+#' they do not include parameter or model-selection uncertainty.
+#'
+#' Not supported (an error explains why): models with external regressors other
+#' than drift (including outlier regressors), models with a Box-Cox
+#' transformation (`lambda`), whose point forecasts and variances would be on
+#' different scales, and series with missing values, for which the psi-weight
+#' variances understate the uncertainty.
 #'
 #' @inheritParams forecast_error_variance
 #' @param level Coverage of the central prediction interval.
@@ -61,6 +75,19 @@ dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
   attr(out, "level") <- level
   attr(out, "time") <- .time_values(fc)
   out
+}
+
+# The psi-weight variance assumes past innovations are known, which fails when
+# the observed history has gaps (especially at the end of the sample).
+.check_complete_history <- function(fit) {
+  y <- tryCatch(forecast::getResponse(fit), error = function(e) NULL)
+  if (!is.null(y) && anyNA(y)) {
+    stop("The series has missing values. The forecast-error variances assume a ",
+         "complete history (known past innovations); with gaps, especially at the ",
+         "end of the sample, they understate the uncertainty. Use ",
+         "forecast::forecast() for Kalman-filter intervals.", call. = FALSE)
+  }
+  invisible(fit)
 }
 
 .point_forecast <- function(fit, steps) {

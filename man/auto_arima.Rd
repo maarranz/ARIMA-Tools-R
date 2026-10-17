@@ -18,34 +18,34 @@ auto_arima(
 )
 }
 \arguments{
-\item{y}{A numeric vector or `ts` object.}
+\item{y}{A numeric vector or \code{ts} object.}
 
 \item{criterion}{One of "AIC", "AICc", "BIC".}
 
-\item{d}{Order of differencing; `NULL` lets auto.arima choose it by
+\item{d}{Order of differencing; \code{NULL} lets auto.arima choose it by
 repeated KPSS tests.}
 
 \item{max_p, max_q}{Maximum AR and MA orders.}
 
-\item{stepwise}{Use the stepwise search? `FALSE` searches exhaustively.}
+\item{stepwise}{Use the stepwise search? \code{FALSE} searches exhaustively.}
 
 \item{allow_mean, allow_drift}{Allow a non-zero mean / a drift.}
 
 \item{approximation}{Use the CSS approximation during the search?
-Default `FALSE`, as in StatsForecast (forecast's own default switches the
+Default \code{FALSE}, as in StatsForecast (forecast's own default switches the
 approximation on for series longer than 150 observations, which can
 change the selected model).}
 
-\item{...}{Further arguments for [forecast::auto.arima()].}
+\item{...}{Further arguments for \code{\link[forecast:auto.arima]{forecast::auto.arima()}}.}
 }
 \value{
-A fitted `forecast_ARIMA`/`Arima` object with attribute `ic`.
+A fitted \code{forecast_ARIMA}/\code{Arima} object with attribute \code{ic}.
 }
 \description{
-A thin wrapper around [forecast::auto.arima()] with the course defaults:
+A thin wrapper around \code{\link[forecast:auto.arima]{forecast::auto.arima()}} with the course defaults:
 nonseasonal models and BIC. (StatsForecast's AutoARIMA, used by the Python
 version, is a port of this same function.) Unlike in Python, the result is
-an ordinary `Arima` object, so every other function in the package accepts
+an ordinary \code{Arima} object, so every other function in the package accepts
 it directly.
 }
 \details{

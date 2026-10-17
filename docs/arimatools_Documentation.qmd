@@ -144,7 +144,7 @@ R's `residuals()` are standardized innovations, which differ from Statsmodels' r
 
 `compare_models()` accepts at least two fitted models, labelled by their order, by argument names (`compare_models(a = fit1, b = fit2)`) or by `names`. Its table includes the log likelihood, AIC, AICc, BIC, and HQIC, with k counting the innovation variance. Compare models for the same dependent variable and sample.
 
-`order_search()` estimates every order from zero to `p_max`/`q_max`, and differencing orders from `d_min` through `d_max` (both default to zero). `criterion` sorts the table; convergence status is retained. If the default CSS-ML estimation fails for a candidate, exact ML is tried and the status says so. `select_model()` returns the eligible row minimizing AIC, AICc, BIC, or HQIC, excluding non-converged models. Selection is not a diagnostic assessment.
+The two operations are kept separate. `order_search()` **estimates and reports**: it fits every order from zero to `p_max`/`q_max`, and differencing orders from `d_min` through `d_max` (both default to zero), and reports all four criteria and the convergence status. Rows are grouped by d and sorted by `criterion` within each d; it never ranks models across different d. If the default CSS-ML estimation fails for a candidate, exact ML is tried and the status says so. `select_model()` is the only function that **chooses**, and it does so only when the criteria are comparable: models with the same d (choose d first, with unit-root tests and graphs; if the table has several d, `select_model()` asks for `d =`), estimated on the same number of observations, converged, and with a genuine likelihood (CSS-only fits have `NA` criteria). It cannot check that the dependent variable is the same. Selection is not a diagnostic assessment.
 
 ```r
 alternative <- Arima(y, order = c(1, 0, 0), include.mean = FALSE)
@@ -152,6 +152,8 @@ comparison <- compare_models(fit, alternative, names = c("ARMA(1,1)", "AR(1)"))
 search <- order_search(y, p_max = 2, q_max = 2, criterion = "BIC",
                        include.constant = FALSE)
 selected <- select_model(search, criterion = "BIC")
+# With several d in the grid, choose d first:
+# select_model(order_search(y, d_min = 0, d_max = 1), "BIC", d = 0)
 print(selected)
 ```
 
@@ -167,9 +169,9 @@ automatic_roots <- root_summary(automatic)
 
 ## Dynamic effects and parameter stability
 
-`dynamic_effects()` returns the psi weights of the fitted model and their cumulative sums, from horizon zero through `horizon = 20`. The differencing polynomial (ordinary and seasonal) is included, so a fitted random walk has a unit response at every horizon. `plot_dynamic_effects()` plots both series.
+`dynamic_effects()` returns the psi weights of the fitted model and their cumulative sums, from horizon zero through `horizon = 20`. The differencing polynomial (ordinary and seasonal) is included, so a fitted random walk has a unit response at every horizon. `plot_dynamic_effects()` plots both series. Models with a Box–Cox transformation (`lambda`) are rejected, because their psi weights describe the transformed series.
 
-`recursive_estimation()` takes the original series and an order `c(p, d, q)` and returns a long expanding-window table with estimates, standard errors, intervals, sample endpoints, and convergence status, plus the recursive innovation variance (`sigma2`, without interval). `initial` can be an observation count, a fraction between zero and one, or `NULL` (an automatic 10% rule subject to `min_df = 20`). Endpoints are dates for monthly, quarterly and annual `ts` objects and observation numbers for plain vectors.
+`recursive_estimation()` takes the original series and an order `c(p, d, q)` and returns a long expanding-window table with estimates, standard errors, intervals, sample endpoints, and convergence status, plus the recursive innovation variance (`sigma2`, without interval). `initial` can be an observation count, a fraction between zero and one, or `NULL` (an automatic 10% rule subject to `min_df = 20`). Endpoints are dates for monthly, quarterly and annual `ts` objects and observation numbers for plain vectors. External regressors (`xreg`) and `lambda` are not supported; endpoints where estimation failed keep their error messages in `attr(recursive, "failures")`.
 
 ```r
 effects <- dynamic_effects(fit, horizon = 12)
@@ -187,7 +189,7 @@ stability_plot <- plot_parameter_stability(recursive, parameters = c("ar1", "ma1
 All four functions take a fitted model. `steps = 20` is a positive integer, and `level = 0.95` is a central normal-theory prediction-interval coverage strictly between zero and one.
 
 - `forecast_error_variance()` returns a numeric vector for horizons 1 through `steps`, computed from the full ARIMA psi weights, including ordinary/seasonal integration, on the original scale.
-- `dynamic_forecast()` returns a data frame with `horizon`, `forecast`, `fev`, `se`, `lower` and `upper`. Point forecasts come from `forecast::forecast()`; uncertainty from the psi-weight FEV.
+- `dynamic_forecast()` returns a data frame with `horizon`, `forecast`, `fev`, `se`, `lower` and `upper`. These are single-origin forecasts: all horizons are made from the end of the sample, with unknown future innovations set to zero, and are not updated as new data arrive. Point forecasts come from `forecast::forecast()`; uncertainty from the psi-weight FEV.
 - `plot_forecast()` draws the observed series, the forecast, two **unfilled interval boundary lines**, and a forecast-origin marker.
 - `plot_fan_chart()` draws nested shaded central intervals, stronger centrally and fading outward, and the point forecast.
 
@@ -206,7 +208,9 @@ custom_fan <- plot_fan_chart(fit, steps = 12, levels = c(0.95, 0.50, 0.80),
                              history = NULL)
 ```
 
-FEV treats fitted parameters and past innovations as known, so parameter-estimation uncertainty is not included, and the exact Kalman-filter variances of `predict()` can differ slightly in short samples. The innovation variance is `fit$sigma2`: `forecast::Arima()` reports the degrees-of-freedom-adjusted SSR / (n − number of coefficients), whereas `stats::arima()` and Statsmodels report the ML estimate SSR / n. Using `fit$sigma2` keeps these intervals consistent with `forecast(fit)` for the same object. Models with external regressors other than drift are outside the forecasting interface.
+The intervals are Gaussian and conditional on the estimated parameters and the selected model: parameter and model-selection uncertainty are not included. FEV treats past innovations as known, so the exact Kalman-filter variances of `predict()` can differ slightly in short samples. The innovation variance is `fit$sigma2`: `forecast::Arima()` reports the degrees-of-freedom-adjusted SSR / (n′ − number of coefficients), where n′ is the number of observations after differencing, whereas `stats::arima()` and Statsmodels report the ML estimate SSR / n′. Using `fit$sigma2` keeps these intervals consistent with `forecast(fit)` for the same object.
+
+Three cases are rejected with an explanation: models with external regressors other than drift (including outlier regressors); models with a Box–Cox transformation (`lambda`), whose point forecasts are on the original scale while the variances would be on the transformed scale; and series with missing values, where the assumption of known past innovations fails and the intervals would be too narrow (use `forecast::forecast()` in that case).
 
 ## Outliers
 
@@ -238,7 +242,7 @@ outlier_plot <- plot_outliers(detected)
 dummy_plot <- plot_outliers(fit_dummies, title = "Hand-picked outliers")
 ```
 
-**Supported models.** `detect_outliers()` handles univariate, nonseasonal ARIMA models of the series as given, with an optional mean (d = 0) or drift (d = 1). Transform the series yourself (logs, growth rates) before calling it. Models with explanatory variables (`xreg`) or a Box–Cox transformation (`lambda`) are rejected, in both `detect_outliers()` and `plot_outliers()`, because the effects and the adjusted series would be defined on another scale or conditional on other variables.
+**Supported models.** `detect_outliers()` handles univariate, nonseasonal ARIMA models of the series as given, with an optional mean (d = 0) or drift (d = 1). Transform the series yourself (logs, growth rates) before calling it. Models with explanatory variables (`xreg`), a Box–Cox transformation (`lambda`) or fixed coefficients are rejected, because the effects and the adjusted series would be defined on another scale or conditional on other variables, or the constraints would be lost. Argument names in `...` are matched as `tso()` would match them, so abbreviations such as `xr` are caught too, and a regressor named `drift` is accepted only if it is the built-in linear trend. `plot_outliers()` rejects `lambda` models; for a model fitted by hand it plots the AO/LS/TC columns and ignores any other regressors.
 
 **Warnings and convergence.** Warnings from `tso()`, such as an iteration limit reached during the search, are passed on as one warning and kept in `$warnings`; they do not necessarily invalidate the result. If the final model did not converge, a warning is issued and `$converged` is `FALSE`. The printed summary flags both.
 
@@ -270,7 +274,7 @@ Detection currently uses tsoutliers; the arguments and output are defined indepe
 | `dynamic_effects(fit, horizon = 20)` | data frame: effects and cumulative effects |
 | `plot_dynamic_effects(fit, horizon = 20, title = "Dynamic Effects of an Innovation", interactive = FALSE)` | patchwork: effects and cumulative effects |
 | `compare_models(..., names = NULL)` | data frame: likelihood and information criteria |
-| `select_model(table, criterion = "BIC")` | one-row data frame: selected model |
+| `select_model(table, criterion = "BIC", d = NULL)` | one-row data frame: selected model (comparable candidates only) |
 | `order_search(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0, criterion = "BIC", include.constant = NULL, ...)` | data frame: candidate orders and fit status |
 | `auto_arima(y, criterion = "BIC", d = NULL, max_p = 5, max_q = 5, stepwise = TRUE, allow_mean = TRUE, allow_drift = TRUE, approximation = FALSE, ...)` | fitted `Arima` object |
 | `recursive_estimation(y, order, initial = NULL, min_df = 20, confidence = 0.95, include.constant = NULL, ...)` | data frame: recursive estimates and fit status |
@@ -292,7 +296,7 @@ Full argument documentation is available in R with `?function_name` (e.g. `?recu
 
 - [Repository and README](https://github.com/maarranz/ARIMA-Tools-R)
 - [Python version: ARIMA-Tools](https://github.com/maarranz/ARIMA-Tools)
-- [MIT License](https://github.com/maarranz/ARIMA-Tools-R/blob/main/LICENSE)
+- [MIT License](https://github.com/maarranz/ARIMA-Tools-R/blob/main/LICENSE.md)
 - [Quarto source](arimatools_Documentation.qmd)
 
 **Miguel A. Arranz, PhD**\
