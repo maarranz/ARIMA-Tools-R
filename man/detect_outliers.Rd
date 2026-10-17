@@ -31,14 +31,17 @@ rule: 3 for n <= 50, 4 for n >= 450, linear in between.}
 (mean if d = 0, drift if d = 1) or `FALSE`. Ignored when auto.arima
 chooses the model.}
 
-\item{...}{Further arguments for [tsoutliers::tso()] (e.g. `maxit.iloop`).}
+\item{...}{Further arguments for [tsoutliers::tso()] that control the search
+(e.g. `maxit.iloop`, `discard.method`). `xreg`, `lambda` and the
+arguments that specify the model are not allowed here.}
 }
 \value{
 An object of class `arimatools_outliers`: a list with `outliers`
   (table with `type`, `date`, `index`, `time`, `estimate`, `std.error`,
   `statistic`), `fit` (final `Arima` model), `regressors`, `effects`
   (combined outlier effect, a `ts`), `adjusted` (series minus effects),
-  `y`, `order`, `cval`, `delta` and `auto` (was the order selected?).
+  `y`, `order`, `cval`, `delta`, `auto` (was the order selected?),
+  `converged` (did the final fit converge?) and `warnings`.
 }
 \description{
 Detects additive outliers (AO), level shifts (LS) and temporary changes (TC)
@@ -56,12 +59,32 @@ Three ways to specify the model:
   defaults (BIC, nonseasonal). The order selected in the presence of
   outliers can differ from the one chosen for the raw series.
 
-The final model is an ordinary `Arima` object, so [coefficient_diagnostics()],
-[ljung_box_test()], [joint_significance()] and the other functions apply to
-it. The table reports estimates and z-statistics from this final fit; they
-can differ in the last decimals from those printed by `tso()`.
+**Supported models.** Univariate, nonseasonal ARIMA models of the series as
+given, with an optional mean (d = 0) or drift (d = 1). Transform the series
+yourself (logs, growth rates) before calling the function. Models with other
+explanatory variables (`xreg`) or a Box-Cox transformation (`lambda`) are
+rejected, because the outlier effects and the adjusted series would then be
+defined on a different scale or conditional on other variables.
 
-Requires the 'tsoutliers' package. Rank checking is switched on, so outliers
-that are collinear with others (e.g. an LS and a TC on the same date) are
-dropped instead of stopping the procedure.
+**Interpretation.** AO, LS and TC are estimated intervention components of
+the modelled series, not proof of a cause. The reported standard errors and
+z-statistics treat the selected dates, types and model order as known; they
+are not adjusted for the search that selected them. The table comes from the
+final fit, so it matches [coefficient_diagnostics()] and can differ in the
+last decimals from the numbers printed by `tso()`.
+
+**Warnings and convergence.** Warnings from `tso()` (for example, iteration
+limits reached during the search) are passed on as a single warning and kept
+in `$warnings`. If the final model did not converge, a warning is issued and
+`$converged` is `FALSE`.
+
+**Collinearity.** Rank checking is switched on in `tso()`, so a candidate
+outlier that is numerically collinear with others is dropped instead of
+stopping the search. Collinear cases include an LS and a TC on the last
+observation (identical regressors), and an LS on the first observation
+together with a mean (or with differencing). An LS and a TC on the same
+interior date are distinct regressors, but become nearly collinear as
+`delta` approaches 1.
+
+Requires the 'tsoutliers' package.
 }

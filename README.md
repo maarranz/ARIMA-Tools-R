@@ -37,7 +37,7 @@ The same 26 functions as the Python package, with the same names, plus three out
 - **Diagnostics:** `ljung_box_test`, `residual_correlations`, `jarque_bera_test`, `plot_residual_diagnostics`, `dynamic_effects`, `plot_dynamic_effects`, `recursive_estimation`, `plot_parameter_stability`.
 - **Model comparison and selection:** `compare_models`, `order_search`, `select_model`, `auto_arima`, `auto_arima_summary`.
 - **Forecasting:** `forecast_error_variance`, `dynamic_forecast`, `plot_forecast`, `plot_fan_chart` (default fan coverages `c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99)`).
-- **Outliers (AO, LS, TC; nonseasonal models):** `outlier_regressors` (dummies for dates you choose, e.g. `"2020Q2"`), `detect_outliers` (Chen–Liu procedure via `tsoutliers::tso()`, for a fitted model, a fixed order or an auto.arima choice), `plot_outliers` (observed vs adjusted series and the combined outlier effect, for detected or hand-picked outliers).
+- **Outliers (AO, LS, TC; nonseasonal models):** `outlier_regressors` (dummies for dates you choose, e.g. `"2020Q2"`), `detect_outliers` (Chen–Liu procedure via `tsoutliers::tso()`, for a fitted model, a fixed order or an auto.arima choice), `plot_outliers` (observed vs adjusted series and the combined outlier effect, for detected or hand-picked outliers). Models with explanatory variables or a Box–Cox transformation are rejected; warnings and non-convergence are reported.
 
 [API documentation — rendered HTML](docs/index.html) · [Quarto source](docs/arimatools_Documentation.qmd) · in R: `?recursive_estimation`, etc.
 

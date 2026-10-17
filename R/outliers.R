@@ -30,9 +30,13 @@
   as.character(idx)
 }
 
-# Convert user-supplied dates to observation numbers of y. Accepted: "2020Q2",
-# "2020:2", "2008M9", "2008-09-01" / Date objects (period containing the date),
-# 1990 (annual), or decimal time (2020.25).
+# Convert user-supplied dates to observation numbers of y. Calendar formats
+# are accepted only where they are unambiguous:
+#   quarterly ts (frequency 4):  "2020Q2", "2020:2", Date / "2020-04-01"
+#   monthly ts (frequency 12):   "2008M09", "2008:9", Date / "2008-09-01"
+#   annual ts (frequency 1):     1990, "1990", Date / "1990-01-01"
+# Decimal time (e.g. 2020.25) works for any ts if it matches an observation
+# exactly. For other frequencies, use `positions` (observation numbers).
 .periods_to_index <- function(y, dates) {
   n <- length(y)
   if (!stats::is.ts(y)) {
@@ -44,23 +48,55 @@
   } else {
     f <- stats::frequency(y)
     tt <- as.numeric(stats::time(y))
-    to_time <- function(d) {
-      if (inherits(d, "Date")) {
-        yr <- as.numeric(format(d, "%Y")); m <- as.numeric(format(d, "%m"))
-        return(yr + floor((m - 1) * f / 12) / f)
+    calendar <- f %in% c(1, 4, 12)
+    no_calendar <- function(s) {
+      stop("Calendar dates such as '", s, "' are supported for annual, ",
+           "quarterly and monthly series only. Use `positions` (observation ",
+           "numbers) or decimal time for this series (frequency ", f, ").",
+           call. = FALSE)
+    }
+    from_period <- function(yr, p, s) {
+      if (p < 1 || p > f) {
+        stop("Invalid period in '", s, "': must lie between 1 and ", f, ".",
+             call. = FALSE)
       }
-      if (is.numeric(d)) return(d)
+      yr + (p - 1) / f
+    }
+    from_date <- function(d, s) {
+      if (!calendar) no_calendar(s)
+      yr <- as.numeric(format(d, "%Y")); m <- as.numeric(format(d, "%m"))
+      yr + floor((m - 1) * f / 12) / f
+    }
+    to_time <- function(d) {
+      if (inherits(d, "Date")) return(from_date(d, format(d)))
+      if (is.numeric(d)) {
+        if (f == 1 || d != round(d)) return(d)
+        stop("A bare year such as ", d, " is ambiguous for a series with ",
+             "frequency ", f, ". Use e.g. \"", d, "Q1\" or \"", d, "M01\".",
+             call. = FALSE)
+      }
       s <- trimws(as.character(d))
-      if (grepl("^[0-9]{4}[QqMm:][0-9]{1,2}$", s)) {
-        yr <- as.numeric(substr(s, 1, 4))
-        p <- as.numeric(sub("^[0-9]{4}[QqMm:]", "", s))
-        return(yr + (p - 1) / f)
+      if (grepl("^[0-9]{4}[Qq][0-9]{1,2}$", s)) {
+        if (f != 4) stop("'", s, "' is a quarterly date but the series has ",
+                         "frequency ", f, ".", call. = FALSE)
+        return(from_period(as.numeric(substr(s, 1, 4)), as.numeric(substring(s, 6)), s))
+      }
+      if (grepl("^[0-9]{4}[Mm][0-9]{1,2}$", s)) {
+        if (f != 12) stop("'", s, "' is a monthly date but the series has ",
+                          "frequency ", f, ".", call. = FALSE)
+        return(from_period(as.numeric(substr(s, 1, 4)), as.numeric(substring(s, 6)), s))
+      }
+      if (grepl("^[0-9]{4}:[0-9]{1,3}$", s)) {
+        if (!calendar) no_calendar(s)
+        return(from_period(as.numeric(substr(s, 1, 4)), as.numeric(substring(s, 6)), s))
       }
       if (grepl("^[0-9]{4}-[0-9]{1,2}(-[0-9]{1,2})?$", s)) {
-        if (!grepl("-[0-9]{1,2}-", s)) s <- paste0(s, "-01")
-        return(to_time(as.Date(s)))
+        s2 <- if (grepl("^[0-9]{4}-[0-9]{1,2}$", s)) paste0(s, "-01") else s
+        d2 <- tryCatch(as.Date(s2), error = function(e) NA)
+        if (is.na(d2)) stop("Invalid date '", s, "'.", call. = FALSE)
+        return(from_date(d2, s))
       }
-      if (grepl("^[0-9]{4}$", s)) return(as.numeric(s))
+      if (grepl("^[0-9]{4}$", s)) return(to_time(as.numeric(s)))
       stop("Cannot interpret the date '", s, "'. Use e.g. \"2020Q2\", ",
            "\"2008M09\", \"2008-09-01\" or 1990.", call. = FALSE)
     }
@@ -71,7 +107,7 @@
     }
     idx <- round((tq - tt[1]) * f) + 1
     bad <- is.na(idx) | idx < 1 | idx > n
-    bad[!bad] <- abs(tt[idx[!bad]] - tq[!bad]) > 1 / (2 * f)
+    bad[!bad] <- abs(tt[idx[!bad]] - tq[!bad]) > 1e-6
     if (any(bad)) {
       stop("Date(s) outside the sample or not matching an observation: ",
            paste(format(dates[bad]), collapse = ", "), call. = FALSE)
@@ -105,9 +141,12 @@
 #' identify them.
 #'
 #' @param y The series (preferably a `ts` object).
-#' @param dates Outlier dates: `"2020Q2"`, `"2020:2"`, `"2008M09"`,
-#'   `"2008-09-01"` or `Date` objects (the period containing that date), a
-#'   year such as `1990` for annual data, or decimal time (`2020.25`).
+#' @param dates Outlier dates, checked against the frequency of `y`.
+#'   Quarterly series: `"2020Q2"` or `"2020:2"`; monthly: `"2008M09"` or
+#'   `"2008:9"`; annual: `1990`. For these three frequencies, `Date` objects or
+#'   strings like `"2008-09-01"` also work (the period containing the date).
+#'   Decimal time (`2020.25`) works for any `ts` if it matches an observation.
+#'   For other frequencies (weekly, daily), use `positions`.
 #' @param types Outlier types, `"AO"`, `"LS"` or `"TC"`, recycled to the
 #'   number of dates.
 #' @param delta Decay rate of temporary changes, in (0, 1).
@@ -179,14 +218,34 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
 #'   defaults (BIC, nonseasonal). The order selected in the presence of
 #'   outliers can differ from the one chosen for the raw series.
 #'
-#' The final model is an ordinary `Arima` object, so [coefficient_diagnostics()],
-#' [ljung_box_test()], [joint_significance()] and the other functions apply to
-#' it. The table reports estimates and z-statistics from this final fit; they
-#' can differ in the last decimals from those printed by `tso()`.
+#' **Supported models.** Univariate, nonseasonal ARIMA models of the series as
+#' given, with an optional mean (d = 0) or drift (d = 1). Transform the series
+#' yourself (logs, growth rates) before calling the function. Models with other
+#' explanatory variables (`xreg`) or a Box-Cox transformation (`lambda`) are
+#' rejected, because the outlier effects and the adjusted series would then be
+#' defined on a different scale or conditional on other variables.
 #'
-#' Requires the 'tsoutliers' package. Rank checking is switched on, so outliers
-#' that are collinear with others (e.g. an LS and a TC on the same date) are
-#' dropped instead of stopping the procedure.
+#' **Interpretation.** AO, LS and TC are estimated intervention components of
+#' the modelled series, not proof of a cause. The reported standard errors and
+#' z-statistics treat the selected dates, types and model order as known; they
+#' are not adjusted for the search that selected them. The table comes from the
+#' final fit, so it matches [coefficient_diagnostics()] and can differ in the
+#' last decimals from the numbers printed by `tso()`.
+#'
+#' **Warnings and convergence.** Warnings from `tso()` (for example, iteration
+#' limits reached during the search) are passed on as a single warning and kept
+#' in `$warnings`. If the final model did not converge, a warning is issued and
+#' `$converged` is `FALSE`.
+#'
+#' **Collinearity.** Rank checking is switched on in `tso()`, so a candidate
+#' outlier that is numerically collinear with others is dropped instead of
+#' stopping the search. Collinear cases include an LS and a TC on the last
+#' observation (identical regressors), and an LS on the first observation
+#' together with a mean (or with differencing). An LS and a TC on the same
+#' interior date are distinct regressors, but become nearly collinear as
+#' `delta` approaches 1.
+#'
+#' Requires the 'tsoutliers' package.
 #'
 #' @param x A fitted model ([forecast::Arima()], [stats::arima()]) or a series.
 #' @param order `c(p, d, q)` when `x` is a series; `NULL` lets auto.arima
@@ -198,12 +257,15 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
 #' @param include.constant With a fixed order: `NULL` (mean if d = 0), `TRUE`
 #'   (mean if d = 0, drift if d = 1) or `FALSE`. Ignored when auto.arima
 #'   chooses the model.
-#' @param ... Further arguments for [tsoutliers::tso()] (e.g. `maxit.iloop`).
+#' @param ... Further arguments for [tsoutliers::tso()] that control the search
+#'   (e.g. `maxit.iloop`, `discard.method`). `xreg`, `lambda` and the
+#'   arguments that specify the model are not allowed here.
 #' @return An object of class `arimatools_outliers`: a list with `outliers`
 #'   (table with `type`, `date`, `index`, `time`, `estimate`, `std.error`,
 #'   `statistic`), `fit` (final `Arima` model), `regressors`, `effects`
 #'   (combined outlier effect, a `ts`), `adjusted` (series minus effects),
-#'   `y`, `order`, `cval`, `delta` and `auto` (was the order selected?).
+#'   `y`, `order`, `cval`, `delta`, `auto` (was the order selected?),
+#'   `converged` (did the final fit converge?) and `warnings`.
 #' @export
 detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
                             cval = NULL, delta = 0.7, include.constant = NULL,
@@ -217,6 +279,20 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
     stop("`types` must be a subset of \"AO\", \"LS\", \"TC\".", call. = FALSE)
   }
   .check_level(delta, "delta")
+  dots <- list(...)
+  reserved <- c("y", "xreg", "lambda", "types", "cval", "delta", "tsmethod",
+                "args.tsmethod", "check.rank")
+  bad_dots <- intersect(names(dots), reserved)
+  if (length(bad_dots)) {
+    if (any(c("xreg", "lambda") %in% bad_dots)) {
+      stop("detect_outliers() supports univariate models of the series as given: ",
+           "external regressors (`xreg`) and Box-Cox transformations (`lambda`) ",
+           "are not supported. Transform the series yourself before calling it.",
+           call. = FALSE)
+    }
+    stop("These arguments cannot be passed through `...`: ",
+         paste(bad_dots, collapse = ", "), ".", call. = FALSE)
+  }
 
   # ---- Model specification -----------------------------------------------------
   if (inherits(x, "Arima")) {
@@ -226,21 +302,31 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
     if (o$P + o$D + o$Q > 0) {
       stop("detect_outliers() supports nonseasonal models only.", call. = FALSE)
     }
+    if (!is.null(x$lambda)) {
+      stop("The model uses a Box-Cox transformation (lambda), which ",
+           "detect_outliers() does not support. Transform the series yourself ",
+           "(e.g. log(y)) and fit the model without `lambda`.", call. = FALSE)
+    }
     cn <- names(x$coef)
-    other <- setdiff(colnames(x$xreg), "drift")
+    other <- cn[!grepl("^(ar|ma)[0-9]+$", cn) & !cn %in% c("intercept", "drift")]
     if (length(other)) {
-      stop("The model already has regressors (", paste(other, collapse = ", "),
-           "). Fit the model without them.", call. = FALSE)
+      stop("The model has explanatory variables (", paste(other, collapse = ", "),
+           "), which detect_outliers() does not support. Fit the model without ",
+           "them.", call. = FALSE)
     }
     y <- .response(x)
+    if (anyNA(y)) stop("The series must not contain missing values.", call. = FALSE)
     ord <- c(o$p, o$d, o$q)
     use_mean <- "intercept" %in% cn
     use_drift <- "drift" %in% cn
     auto <- FALSE
   } else {
+    if (!is.null(dim(x)) && NCOL(x) > 1) {
+      stop("`x` must be a univariate series.", call. = FALSE)
+    }
     y <- x
     if (!stats::is.ts(y)) y <- stats::ts(as.numeric(y))
-    if (anyNA(y)) stop("`x` must not contain missing values.", call. = FALSE)
+    if (anyNA(y)) stop("The series must not contain missing values.", call. = FALSE)
     auto <- is.null(order)
     if (!auto) {
       if (!is.numeric(order) || length(order) != 3L ||
@@ -258,9 +344,24 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
   }
   n <- length(y)
 
+  # ---- Sample size -------------------------------------------------------------
+  if (auto) {
+    if (n < 20) {
+      stop("Too few observations (", n, ") for automatic model selection with ",
+           "outlier detection; at least 20 are needed.", call. = FALSE)
+    }
+  } else {
+    k <- ord[1] + ord[3] + use_mean + use_drift
+    if (n - ord[2] - k < 10) {
+      stop("Too few observations (", n, ") for ARIMA(", paste(ord, collapse = ","),
+           ") with outlier detection: after differencing, at least 10 more ",
+           "observations than estimated coefficients are needed.", call. = FALSE)
+    }
+  }
+
   # ---- Detection with tsoutliers::tso -----------------------------------------
-  tso_args <- list(y = y, types = types, cval = cval, delta = delta,
-                   check.rank = TRUE, ...)
+  tso_args <- c(list(y = y, types = types, cval = cval, delta = delta,
+                     check.rank = TRUE), dots)
   if (auto) {
     tso_args$tsmethod <- "auto.arima"
     tso_args$args.tsmethod <- list(ic = "bic", seasonal = FALSE,
@@ -270,13 +371,13 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
     tso_args$args.tsmethod <- list(order = ord, include.mean = use_mean)
     if (use_drift) tso_args$xreg <- cbind(drift = seq_len(n))
   }
-  res <- tryCatch(
-    suppressWarnings(do.call(tsoutliers::tso, tso_args)),
+  det <- .collect_warnings(tryCatch(
+    do.call(tsoutliers::tso, tso_args),
     error = function(e) {
-      stop("tsoutliers::tso() failed: ", conditionMessage(e),
-           "\nTry a different `cval` or a simpler model.", call. = FALSE)
+      stop("tsoutliers::tso() failed: ", conditionMessage(e), call. = FALSE)
     }
-  )
+  ))
+  res <- det$value
   if (auto) {
     a <- res$fit$arma
     ord <- c(a[1], a[6], a[2])
@@ -294,10 +395,25 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
   } else {
     X <- NULL
   }
-  fit <- suppressWarnings(forecast::Arima(
+  final <- .collect_warnings(forecast::Arima(
     y, order = ord, xreg = X, include.mean = use_mean, include.drift = use_drift
   ))
+  fit <- final$value
   fit$series <- if (inherits(x, "Arima")) .series_name(x) else deparse1(substitute(x))
+  converged <- .converged(fit)
+
+  warns <- unique(c(det$warnings, final$warnings))
+  if (length(warns)) {
+    warning("Warnings during outlier detection:\n  ",
+            paste(warns, collapse = "\n  "),
+            "\nThe results may still be valid; see `$warnings` and check the fit.",
+            call. = FALSE)
+  }
+  if (!converged) {
+    warning("The final model did not converge (optimizer code ", fit$code, "). ",
+            "Treat the estimates with caution; a simpler model may help.",
+            call. = FALSE)
+  }
 
   if (!is.null(X)) {
     cd <- coefficient_diagnostics(fit)
@@ -321,9 +437,19 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
   structure(
     list(outliers = tab, fit = fit, regressors = X, effects = eff,
          adjusted = y - eff, y = y, order = ord, cval = res$cval, delta = delta,
-         auto = auto),
+         auto = auto, converged = converged, warnings = warns),
     class = "arimatools_outliers"
   )
+}
+
+# Evaluate an expression, muffling but recording its warnings.
+.collect_warnings <- function(expr) {
+  warns <- character(0)
+  value <- withCallingHandlers(expr, warning = function(w) {
+    warns <<- c(warns, conditionMessage(w))
+    invokeRestart("muffleWarning")
+  })
+  list(value = value, warnings = unique(warns))
 }
 
 #' @export
@@ -335,6 +461,8 @@ print.arimatools_outliers <- function(x, digits = 4, ...) {
       if (x$auto) "(selected by auto.arima, BIC)" else "(order fixed)", "\n")
   cat("Critical value: ", format(x$cval), "\n")
   cat("Outliers found: ", nrow(x$outliers), "\n")
+  if (isFALSE(x$converged)) cat("Converged:       NO (see warnings)\n")
+  if (length(x$warnings)) cat("Warnings:       ", length(x$warnings), "(see $warnings)\n")
   if (nrow(x$outliers)) {
     cat("\n")
     tab <- x$outliers[, c("type", "date", "index", "estimate", "std.error", "statistic")]
@@ -352,7 +480,11 @@ print.arimatools_outliers <- function(x, digits = 4, ...) {
 #' Works both for automatic detection and for outliers chosen by hand:
 #' `x` can be the output of [detect_outliers()] or any model fitted with
 #' regressors from [outlier_regressors()]. In the second case the effect is the
-#' regressors multiplied by their estimated coefficients.
+#' regressors multiplied by their estimated coefficients. Several outliers on
+#' the same date share one marker (a diamond), whose tooltip lists them all.
+#'
+#' Models with a Box-Cox transformation (`lambda`) are rejected, because their
+#' effects are on the transformed scale.
 #'
 #' @param x Output of [detect_outliers()], or a fitted `Arima` model whose
 #'   regressors include columns named by [outlier_regressors()].
@@ -365,6 +497,12 @@ plot_outliers <- function(x, title = "Outlier Effects", interactive = FALSE) {
     y <- x$y; X <- x$regressors; fit <- x$fit
   } else if (inherits(x, "Arima")) {
     fit <- x
+    if (!is.null(fit$lambda)) {
+      stop("The model uses a Box-Cox transformation (lambda): its outlier effects ",
+           "are on the transformed scale and cannot be subtracted from the ",
+           "original series. Transform the series yourself (e.g. log(y)) and fit ",
+           "the model without `lambda`.", call. = FALSE)
+    }
     y <- .response(fit)
     X <- fit$xreg
     keep <- grepl(.outlier_pattern, colnames(X))
@@ -383,12 +521,19 @@ plot_outliers <- function(x, title = "Outlier Effects", interactive = FALSE) {
   if (!is.null(X) && ncol(X)) {
     eff <- as.numeric(as.matrix(X) %*% fit$coef[colnames(X)])
     first <- apply(as.matrix(X), 2, function(col) which(col != 0)[1])
-    pts <- data.frame(t = tt[first], y = as.numeric(y)[first],
-                      eff = eff[first],
-                      type = substr(colnames(X), 1, 2),
-                      label = colnames(X), stringsAsFactors = FALSE)
-    pts$text <- sprintf("%s<br>Effect at onset: %.4f", pts$label,
-                        fit$coef[colnames(X)])
+    one <- sprintf("%s: %.4f", colnames(X), fit$coef[colnames(X)])
+    # One marker per date; several outliers on the same date share a marker.
+    pos <- sort(unique(first))
+    grp <- lapply(pos, function(i) which(first == i))
+    pts <- data.frame(
+      t = tt[pos], y = as.numeric(y)[pos], eff = eff[pos],
+      type = vapply(grp, function(g) {
+        tp <- unique(substr(colnames(X)[g], 1, 2))
+        if (length(tp) > 1) "Several" else tp
+      }, character(1)),
+      text = vapply(grp, function(g) paste(one[g], collapse = "<br>"), character(1)),
+      stringsAsFactors = FALSE
+    )
     subtitle <- NULL
   } else {
     eff <- numeric(n)
@@ -423,7 +568,7 @@ plot_outliers <- function(x, title = "Outlier Effects", interactive = FALSE) {
     .at_theme()
 
   if (!is.null(pts)) {
-    shapes <- c(AO = 21, LS = 22, TC = 24)
+    shapes <- c(AO = 21, LS = 22, TC = 24, Several = 23)
     p1 <- p1 + suppressWarnings(ggplot2::geom_point(
       data = pts, ggplot2::aes(x = .data$t, y = .data$y, shape = .data$type,
                                text = .data$text),

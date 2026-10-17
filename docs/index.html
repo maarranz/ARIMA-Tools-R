@@ -618,6 +618,32 @@ model fitted with regressors from <code>outlier_regressors()</code>, so
 automatic and hand-picked outliers can be shown side by side.</p>
 <div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>outlier_plot <span class="ot">&lt;-</span> <span class="fu">plot_outliers</span>(detected)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>dummy_plot <span class="ot">&lt;-</span> <span class="fu">plot_outliers</span>(fit_dummies, <span class="at">title =</span> <span class="st">&quot;Hand-picked outliers&quot;</span>)</span></code></pre></div>
+<p><strong>Supported models.</strong> <code>detect_outliers()</code>
+handles univariate, nonseasonal ARIMA models of the series as given,
+with an optional mean (d = 0) or drift (d = 1). Transform the series
+yourself (logs, growth rates) before calling it. Models with explanatory
+variables (<code>xreg</code>) or a Box–Cox transformation
+(<code>lambda</code>) are rejected, in both
+<code>detect_outliers()</code> and <code>plot_outliers()</code>, because
+the effects and the adjusted series would be defined on another scale or
+conditional on other variables.</p>
+<p><strong>Warnings and convergence.</strong> Warnings from
+<code>tso()</code>, such as an iteration limit reached during the
+search, are passed on as one warning and kept in <code>$warnings</code>;
+they do not necessarily invalidate the result. If the final model did
+not converge, a warning is issued and <code>$converged</code> is
+<code>FALSE</code>. The printed summary flags both.</p>
+<p><strong>Interpretation.</strong> AO, LS and TC are estimated
+intervention components of the modelled series, not proof of a cause.
+Standard errors and z-statistics treat the selected dates, types and
+order as known, without adjusting for the search.</p>
+<p><strong>Dates.</strong> Dates are checked against the frequency of
+the series: <code>&quot;2020Q2&quot;</code> or <code>&quot;2020:2&quot;</code> for quarterly
+data, <code>&quot;2008M09&quot;</code> or <code>&quot;2008:9&quot;</code> for monthly data,
+<code>1990</code> for annual data, and <code>Date</code> objects for all
+three. An invalid period such as <code>&quot;2000Q5&quot;</code>, or a monthly
+date on a quarterly series, is an error. Weekly and daily series need
+<code>positions</code>.</p>
 <p>Detection currently uses tsoutliers; the arguments and output are
 defined independently of it so that the algorithm can later be replaced
 without changing code that uses these functions. Forecasting models with

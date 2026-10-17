@@ -26,5 +26,9 @@ outlier effect over time.
 Works both for automatic detection and for outliers chosen by hand:
 `x` can be the output of [detect_outliers()] or any model fitted with
 regressors from [outlier_regressors()]. In the second case the effect is the
-regressors multiplied by their estimated coefficients.
+regressors multiplied by their estimated coefficients. Several outliers on
+the same date share one marker (a diamond), whose tooltip lists them all.
+
+Models with a Box-Cox transformation (`lambda`) are rejected, because their
+effects are on the transformed scale.
 }

@@ -15,9 +15,12 @@ outlier_regressors(
 \arguments{
 \item{y}{The series (preferably a `ts` object).}
 
-\item{dates}{Outlier dates: `"2020Q2"`, `"2020:2"`, `"2008M09"`,
-`"2008-09-01"` or `Date` objects (the period containing that date), a
-year such as `1990` for annual data, or decimal time (`2020.25`).}
+\item{dates}{Outlier dates, checked against the frequency of `y`.
+Quarterly series: `"2020Q2"` or `"2020:2"`; monthly: `"2008M09"` or
+`"2008:9"`; annual: `1990`. For these three frequencies, `Date` objects or
+strings like `"2008-09-01"` also work (the period containing the date).
+Decimal time (`2020.25`) works for any `ts` if it matches an observation.
+For other frequencies (weekly, daily), use `positions`.}
 
 \item{types}{Outlier types, `"AO"`, `"LS"` or `"TC"`, recycled to the
 number of dates.}

@@ -238,6 +238,14 @@ outlier_plot <- plot_outliers(detected)
 dummy_plot <- plot_outliers(fit_dummies, title = "Hand-picked outliers")
 ```
 
+**Supported models.** `detect_outliers()` handles univariate, nonseasonal ARIMA models of the series as given, with an optional mean (d = 0) or drift (d = 1). Transform the series yourself (logs, growth rates) before calling it. Models with explanatory variables (`xreg`) or a Box–Cox transformation (`lambda`) are rejected, in both `detect_outliers()` and `plot_outliers()`, because the effects and the adjusted series would be defined on another scale or conditional on other variables.
+
+**Warnings and convergence.** Warnings from `tso()`, such as an iteration limit reached during the search, are passed on as one warning and kept in `$warnings`; they do not necessarily invalidate the result. If the final model did not converge, a warning is issued and `$converged` is `FALSE`. The printed summary flags both.
+
+**Interpretation.** AO, LS and TC are estimated intervention components of the modelled series, not proof of a cause. Standard errors and z-statistics treat the selected dates, types and order as known, without adjusting for the search.
+
+**Dates.** Dates are checked against the frequency of the series: `"2020Q2"` or `"2020:2"` for quarterly data, `"2008M09"` or `"2008:9"` for monthly data, `1990` for annual data, and `Date` objects for all three. An invalid period such as `"2000Q5"`, or a monthly date on a quarterly series, is an error. Weekly and daily series need `positions`.
+
 Detection currently uses tsoutliers; the arguments and output are defined independently of it so that the algorithm can later be replaced without changing code that uses these functions. Forecasting models with outlier regressors is not supported yet.
 
 ## Compact API summary
