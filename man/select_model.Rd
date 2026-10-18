@@ -32,8 +32,9 @@ order of integration should be chosen first (unit-root tests, graphs,
 correlograms). If the table contains models with different d,
 \code{select_model()} stops unless \code{d} says which d to select within. It also
 stops if the remaining candidates were estimated on different numbers of
-observations. It cannot check that the dependent variable is the same; that
-remains the user's responsibility.
+observations. For tables from \code{\link[=compare_models]{compare_models()}} it also checks that all
+candidates were fitted to the same observations: the same sample window and
+the same values (so \code{y} and \code{log(y)} over the same dates are not compared).
 
 Fits estimated by conditional sum of squares (\code{method = "CSS"}) have no
 likelihood; their criteria are \code{NA} and they are never selected.

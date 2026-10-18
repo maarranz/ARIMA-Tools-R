@@ -71,5 +71,26 @@ test_that("F4: select_model checks d and sample size in compare_models tables", 
   expect_equal(select_model(cm, "BIC", d = 1)$model, "ARIMA(1,1,0)")
   fs <- forecast::Arima(window(y, end = 300), order = c(1, 0, 0))
   expect_error(select_model(compare_models(f0, fs, names = c("all", "part")), "BIC"),
-               "different numbers of observations")
+               "same observations")
+})
+
+
+test_that("v0.3.1 verification B: equal n but different windows or data are rejected", {
+  set.seed(312)
+  y12 <- ts(rnorm(140), start = 2000, frequency = 4)
+  early <- forecast::Arima(window(y12, end = c(2024, 4)), order = c(1, 0, 0))
+  late <- forecast::Arima(window(y12, start = c(2010, 1)), order = c(1, 0, 0))
+  tab <- compare_models(early = early, late = late)
+  expect_equal(tab$n[1], tab$n[2])
+  expect_equal(tab$start, c("2000Q1", "2010Q1"))
+  expect_error(select_model(tab), "2000Q1-2024Q4")
+  # same dates, different values (a transformation of the series)
+  pos <- ts(exp(y12 / 5), start = 2000, frequency = 4)
+  a <- forecast::Arima(pos, order = c(1, 0, 0))
+  b <- forecast::Arima(log(pos), order = c(1, 0, 0))
+  expect_error(select_model(compare_models(a = a, b = b)), "different data")
+  # genuinely comparable candidates are still selected
+  c1 <- forecast::Arima(y12, order = c(1, 0, 0))
+  c2 <- forecast::Arima(y12, order = c(0, 0, 1))
+  expect_s3_class(select_model(compare_models(c1, c2)), "data.frame")
 })

@@ -64,7 +64,9 @@ outliers can differ from the one chosen for the raw series.
 }
 
 \strong{Supported models.} Univariate, nonseasonal ARIMA models of the series as
-given, with an optional mean (d = 0) or drift (d = 1). Transform the series
+given, with an optional mean (d = 0) or drift (d = 1). Drift means the
+built-in trend of \code{forecast::Arima(..., include.drift = TRUE)}; a
+user-supplied regressor named \code{drift} (even a shifted trend) is rejected. Transform the series
 yourself (logs, growth rates) before calling the function. Models with other
 explanatory variables (\code{xreg}) or a Box-Cox transformation (\code{lambda}) are
 rejected, because the outlier effects and the adjusted series would then be

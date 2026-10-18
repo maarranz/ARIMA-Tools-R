@@ -71,11 +71,15 @@ testthat::test_local()   # from the package root
 
 The suite ports `tests/test_forecasting.py` (FEV against Kalman variances and closed forms for AR(1), ARMA(1,1) and the random walk) and adds checks for every other function against base R, `forecast`, `lmtest` and `tsoutliers`.
 
-## Related projects
+## The ATSE software suite
 
-- **ARIMA-Tools** (Python) — the original package.
-- **ARMA-Theory** — theoretical ARMA properties, roots, ACF/PACF, and impulse responses.
-- **Forecast-Tools** — forecast evaluation and comparison (planned).
+arimatools is one of a set of companion packages for the ATSE course:
+
+- **[ARIMA-Tools](https://github.com/maarranz/ARIMA-Tools)** (Python) — the original package; arimatools is its R version.
+- **[ARMA-Theory](https://github.com/maarranz/ARMA-theory)** — theoretical ARMA properties, roots, ACF/PACF and impulse responses.
+- **[ADL-Theory](https://github.com/maarranz/adl-theory)** — theoretical autoregressive distributed lag (ADL) models.
+- **[Forecasting-Tools](https://github.com/maarranz/Forecasting-Tools)** — forecast evaluation and comparison (Python; R version planned).
+- **ADL-Tools** — empirical ADL modelling (forthcoming).
 
 ## License
 

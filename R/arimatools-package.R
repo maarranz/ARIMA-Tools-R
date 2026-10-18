@@ -5,6 +5,9 @@
 #' [stats::arima()], except the functions that estimate models themselves
 #' ([order_search()], [recursive_estimation()], [auto_arima()]).
 #'
+#' Part of the ATSE software suite, with ARIMA-Tools (Python), ARMA-Theory,
+#' ADL-Theory, Forecasting-Tools and ADL-Tools (forthcoming).
+#'
 #' Function names match the Python API. Tables follow R/broom conventions
 #' (`term`, `estimate`, `std.error`, `p.value`, ...). Figures are ggplot2
 #' objects; pass `interactive = TRUE` for a plotly widget.

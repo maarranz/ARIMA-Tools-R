@@ -197,7 +197,7 @@ test_that("F2: partial argument names and fake drift regressors are rejected", {
   Zd <- cbind(drift = rnorm(160))
   y2 <- ts(cumsum(rnorm(160, sd = 0.2)) + 3 * Zd[, 1], start = 1980, frequency = 4)
   f2 <- forecast::Arima(y2, order = c(0, 1, 0), xreg = Zd)
-  expect_error(detect_outliers(f2, cval = 4), "not a linear time trend")
+  expect_error(detect_outliers(f2, cval = 4), "not the built-in drift")
   # the genuine built-in drift is still accepted
   fd <- forecast::Arima(ts(cumsum(0.3 + rnorm(150)), frequency = 4, start = 1980),
                         order = c(0, 1, 1), include.drift = TRUE)
@@ -223,4 +223,20 @@ test_that("F9: invalid inputs to outlier_regressors and detect_outliers", {
   expect_false(stats::is.ts(outlier_regressors(rnorm(30), positions = 5)))
   skip_tso()
   expect_error(detect_outliers(replace(z, 4, Inf), order = c(0, 0, 0)), "infinite")
+})
+
+
+test_that("v0.3.1 verification A: a shifted linear 'drift' regressor is rejected", {
+  skip_tso()
+  set.seed(313)
+  Z <- cbind(drift = seq_len(120) + 10)
+  y13 <- ts(2 * Z[, 1] + rnorm(120, sd = 0.1))
+  f13 <- forecast::Arima(y13, order = c(0, 0, 0), include.mean = FALSE, xreg = Z)
+  expect_error(detect_outliers(f13, cval = 100), "not the built-in drift")
+  Z2 <- cbind(drift = 2 * seq_len(120))
+  f14 <- forecast::Arima(y13, order = c(0, 0, 0), xreg = Z2)
+  expect_error(detect_outliers(f14, cval = 100), "not the built-in drift")
+  # the built-in drift (d = 0 and d = 1) is accepted
+  f15 <- forecast::Arima(y13, order = c(0, 0, 0), include.drift = TRUE)
+  expect_s3_class(suppressWarnings(detect_outliers(f15, cval = 100)), "arimatools_outliers")
 })

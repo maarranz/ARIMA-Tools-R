@@ -12,6 +12,9 @@ a model fitted with \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link
 (\code{\link[=order_search]{order_search()}}, \code{\link[=recursive_estimation]{recursive_estimation()}}, \code{\link[=auto_arima]{auto_arima()}}).
 }
 \details{
+Part of the ATSE software suite, with ARIMA-Tools (Python), ARMA-Theory,
+ADL-Theory, Forecasting-Tools and ADL-Tools (forthcoming).
+
 Function names match the Python API. Tables follow R/broom conventions
 (\code{term}, \code{estimate}, \code{std.error}, \code{p.value}, ...). Figures are ggplot2
 objects; pass \code{interactive = TRUE} for a plotly widget.

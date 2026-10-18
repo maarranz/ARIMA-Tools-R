@@ -233,7 +233,9 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
 #'   outliers can differ from the one chosen for the raw series.
 #'
 #' **Supported models.** Univariate, nonseasonal ARIMA models of the series as
-#' given, with an optional mean (d = 0) or drift (d = 1). Transform the series
+#' given, with an optional mean (d = 0) or drift (d = 1). Drift means the
+#' built-in trend of `forecast::Arima(..., include.drift = TRUE)`; a
+#' user-supplied regressor named `drift` (even a shifted trend) is rejected. Transform the series
 #' yourself (logs, growth rates) before calling the function. Models with other
 #' explanatory variables (`xreg`) or a Box-Cox transformation (`lambda`) are
 #' rejected, because the outlier effects and the adjusted series would then be
@@ -348,9 +350,10 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
       stop("The series must not contain missing or infinite values.", call. = FALSE)
     }
     if ("drift" %in% cn && !.is_builtin_drift(x)) {
-      stop("The model has a regressor named 'drift' that is not a linear time ",
-           "trend. Only the built-in drift (include.drift = TRUE in ",
-           "forecast::Arima) is supported.", call. = FALSE)
+      stop("The model has a regressor named 'drift' that is not the built-in ",
+           "drift. Only the trend created by forecast::Arima(..., include.drift = ",
+           "TRUE) is supported; other regressors, including shifted or rescaled ",
+           "trends, are not.", call. = FALSE)
     }
     ord <- c(o$p, o$d, o$q)
     use_mean <- "intercept" %in% cn
@@ -482,16 +485,27 @@ detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
   )
 }
 
-# A built-in drift is a linear time trend stored in fit$xreg (forecast::Arima).
-# stats::arima has no built-in drift, so a 'drift' coefficient there comes from
-# a user regressor.
+# A built-in drift is the time trend that forecast::Arima() creates itself
+# with include.drift = TRUE. To accept only that, the stored column is compared
+# with the one forecast builds for the same series (whatever its version
+# uses), instead of merely checking that it looks linear: a shifted trend such
+# as t + 10 is a different model when there is no mean. stats::arima has no
+# built-in drift, so a 'drift' coefficient there always comes from a user
+# regressor.
 .is_builtin_drift <- function(fit) {
   X <- fit$xreg
   if (is.null(X) || !"drift" %in% colnames(X)) return(FALSE)
-  dr <- as.numeric(X[, "drift"])
-  dd <- diff(dr)
-  length(dr) > 2 && all(is.finite(dr)) && abs(dd[1]) > 0 &&
-    all(abs(dd - dd[1]) < 1e-8 * max(1, abs(dd[1])))
+  d <- .orders(fit)$d
+  if (d > 1) return(FALSE)
+  y <- tryCatch(.response(fit), error = function(e) NULL)
+  if (is.null(y)) return(FALSE)
+  ref <- tryCatch(
+    suppressWarnings(forecast::Arima(y, order = c(0, d, 0), include.drift = TRUE,
+                                     include.mean = FALSE))$xreg,
+    error = function(e) NULL)
+  if (is.null(ref) || !"drift" %in% colnames(ref)) return(FALSE)
+  a <- as.numeric(X[, "drift"]); b <- as.numeric(ref[, "drift"])
+  length(a) == length(b) && isTRUE(all.equal(a, b, tolerance = 1e-10))
 }
 
 # Evaluate an expression, muffling but recording its warnings.

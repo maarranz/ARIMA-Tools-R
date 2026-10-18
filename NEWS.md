@@ -1,3 +1,17 @@
+# arimatools 0.3.2
+
+Fixes the two remaining defects from the v0.3.1 final verification.
+
+* `detect_outliers()` accepts a `drift` regressor only if it is exactly the
+  built-in drift of `forecast::Arima(..., include.drift = TRUE)`; shifted or
+  rescaled trends named `drift` are rejected instead of being replaced.
+* `compare_models()` records each model's estimation sample (`start`, `end`)
+  and a fingerprint of its data (`sample_id`). `select_model()` refuses to
+  choose among models fitted to different windows (even with equal n) or to
+  different data over the same dates (e.g. `y` and `log(y)`).
+* README and API guide describe the ATSE software suite, including the
+  forthcoming ADL-Tools.
+
 # arimatools 0.3.1
 
 Bug-fix release following the v0.3.0 final validation review. All changes are

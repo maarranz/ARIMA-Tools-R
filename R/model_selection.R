@@ -15,7 +15,10 @@
 #' @param ... Two or more fitted ARIMA models (optionally named).
 #' @param names Optional model labels; overrides argument names.
 #' @return A data frame with columns `model`, `order`, `n`, `k`, `loglik`,
-#'   `AIC`, `AICc`, `BIC` and `HQIC` (row names = model labels).
+#'   `AIC`, `AICc`, `BIC`, `HQIC`, `start` and `end` (first and last dates of
+#'   the estimation sample) and `sample_id` (a fingerprint of the observed
+#'   values, used by [select_model()] to check that the models were fitted to
+#'   the same data). Row names are the model labels.
 #' @export
 compare_models <- function(..., names = NULL) {
   fits <- list(...)
@@ -37,8 +40,10 @@ compare_models <- function(..., names = NULL) {
   }
   rows <- lapply(fits, function(f) {
     ic <- .ic_values(f)
+    smp <- .sample_info(f)
     data.frame(order = .order_string(f), n = ic$n, k = ic$k, loglik = ic$loglik,
                AIC = ic$AIC, AICc = ic$AICc, BIC = ic$BIC, HQIC = ic$HQIC,
+               start = smp$start, end = smp$end, sample_id = smp$id,
                stringsAsFactors = FALSE)
   })
   out <- cbind(model = labels, do.call(rbind, rows), stringsAsFactors = FALSE)
@@ -133,8 +138,9 @@ order_search <- function(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0,
 #' correlograms). If the table contains models with different d,
 #' `select_model()` stops unless `d` says which d to select within. It also
 #' stops if the remaining candidates were estimated on different numbers of
-#' observations. It cannot check that the dependent variable is the same; that
-#' remains the user's responsibility.
+#' observations. For tables from [compare_models()] it also checks that all
+#' candidates were fitted to the same observations: the same sample window and
+#' the same values (so `y` and `log(y)` over the same dates are not compared).
 #'
 #' Fits estimated by conditional sum of squares (`method = "CSS"`) have no
 #' likelihood; their criteria are `NA` and they are never selected.
@@ -171,6 +177,22 @@ select_model <- function(table, criterion = "BIC", d = NULL) {
   ok <- keep & is.finite(table[[crit]])
   if ("converged" %in% names(table)) ok <- ok & table$converged
   if (!any(ok)) stop("No eligible models with finite ", crit, " values.", call. = FALSE)
+  if (all(c("start", "end", "sample_id") %in% names(table))) {
+    sid <- table$sample_id[ok]
+    if (anyNA(sid)) {
+      stop("The estimation sample of some candidates could not be recovered, so ",
+           "comparability cannot be checked. Refit them with forecast::Arima().",
+           call. = FALSE)
+    }
+    if (length(unique(sid)) > 1) {
+      win <- unique(paste0(table$start[ok], "-", table$end[ok]))
+      stop("The candidate models were not estimated on the same observations ",
+           if (length(win) > 1) paste0("(samples: ", paste(win, collapse = ", "), ")")
+           else "(same dates, but different data, e.g. y versus log(y))",
+           ". Information criteria are comparable only for the same series and ",
+           "sample.", call. = FALSE)
+    }
+  }
   if ("n" %in% names(table) && length(unique(table$n[ok])) > 1) {
     stop("The candidate models were estimated on different numbers of ",
          "observations (n = ", paste(sort(unique(table$n[ok])), collapse = ", "),
@@ -267,4 +289,32 @@ auto_arima_summary <- function(model) {
     ),
     "AutoARIMA summary"
   )
+}
+
+# Identity of the estimation sample: first and last dates of the observed
+# series and a fingerprint of its values, so that select_model() can tell
+# whether models were fitted to the same data (same window, same
+# transformation).
+.sample_info <- function(fit) {
+  y <- tryCatch(.response(fit), error = function(e) NULL)
+  if (is.null(y)) return(list(start = NA_character_, end = NA_character_, id = NA_character_))
+  v <- as.numeric(y)
+  obs <- which(is.finite(v))
+  lab <- .period_label(y, c(min(obs), max(obs)))
+  w <- seq_along(v)
+  ok <- is.finite(v)
+  id <- paste(length(v), sum(ok),
+              formatC(sum(v[ok]), digits = 12, format = "g"),
+              formatC(sum(v[ok]^2), digits = 12, format = "g"),
+              formatC(sum(w[ok] * v[ok]), digits = 12, format = "g"),
+              if (stats::is.ts(y)) paste(round(stats::tsp(y), 6), collapse = ",") else "",
+              sep = "|")
+  list(start = lab[1], end = lab[2], id = .short_hash(id))
+}
+
+# Compact 8-character checksum of a string (for display; not cryptographic).
+.short_hash <- function(x) {
+  h <- 5381
+  for (code in utf8ToInt(x)) h <- (h * 33 + code) %% 4294967296
+  sprintf("%04x%04x", as.integer(h %/% 65536), as.integer(h %% 65536))
 }
