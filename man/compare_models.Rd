@@ -14,9 +14,10 @@ compare_models(..., names = NULL)
 \value{
 A data frame with columns \code{model}, \code{order}, \code{n}, \code{k}, \code{loglik},
 \code{AIC}, \code{AICc}, \code{BIC}, \code{HQIC}, \code{start} and \code{end} (first and last dates of
-the estimation sample) and \code{sample_id} (a fingerprint of the observed
-values, used by \code{\link[=select_model]{select_model()}} to check that the models were fitted to
-the same data). Row names are the model labels.
+the estimation sample) and \code{sample_id} (an xxhash64 fingerprint of the
+complete series: every observation in order, missing-value positions and
+time attributes), used by \code{\link[=select_model]{select_model()}} to check that the models were
+fitted to the same data. Row names are the model labels.
 }
 \description{
 With k = number of free coefficients + 1 (innovation variance) and n the

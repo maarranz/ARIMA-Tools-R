@@ -94,3 +94,40 @@ test_that("v0.3.1 verification B: equal n but different windows or data are reje
   c2 <- forecast::Arima(y12, order = c(0, 0, 1))
   expect_s3_class(select_model(compare_models(c1, c2)), "data.frame")
 })
+
+test_that("closure verification: sample_id fingerprints the complete series", {
+  # different values with identical sum, sum of squares and weighted sum
+  y <- ts(c(1, 3, 2, rep(c(4, 5, 6), 39)), start = 2000, frequency = 4)
+  z <- y
+  z[1:3] <- c(2, 1, 3)
+  a <- forecast::Arima(y, order = c(0, 0, 0))
+  b <- forecast::Arima(z, order = c(1, 0, 0))
+  tab <- compare_models(a = a, b = b)
+  expect_false(tab$sample_id[1] == tab$sample_id[2])
+  expect_error(select_model(tab), "same observations")
+  # different missing-value positions
+  y2 <- ts(rep(c(2, 3, 4), 40), start = 2000, frequency = 4)
+  z2 <- y2
+  y2[10:13] <- c(NA, 1, 1, NA)
+  z2[10:13] <- c(1, NA, NA, 1)
+  tab2 <- compare_models(a = forecast::Arima(y2, order = c(0, 0, 0)),
+                         b = forecast::Arima(z2, order = c(0, 0, 0)))
+  expect_false(tab2$sample_id[1] == tab2$sample_id[2])
+  expect_error(select_model(tab2), "same observations")
+  # same data with different time attributes
+  y3 <- ts(as.numeric(y), start = 2001, frequency = 4)
+  tab3 <- compare_models(a = a, b = forecast::Arima(y3, order = c(1, 0, 0)))
+  expect_false(tab3$sample_id[1] == tab3$sample_id[2])
+  # identical data give identical fingerprints, also with missing values
+  c1 <- forecast::Arima(y, order = c(0, 0, 0))
+  c2 <- forecast::Arima(y, order = c(1, 0, 0))
+  tab4 <- compare_models(c1, c2)
+  expect_equal(tab4$sample_id[1], tab4$sample_id[2])
+  expect_equal(tab4$sample_id[1], tab$sample_id[1])
+  expect_s3_class(select_model(tab4), "data.frame")
+  m1 <- forecast::Arima(y2, order = c(0, 0, 0))
+  m2 <- forecast::Arima(y2, order = c(1, 0, 0))
+  tab5 <- compare_models(m1, m2)
+  expect_equal(tab5$sample_id[1], tab5$sample_id[2])
+  expect_s3_class(select_model(tab5), "data.frame")
+})

@@ -16,9 +16,10 @@
 #' @param names Optional model labels; overrides argument names.
 #' @return A data frame with columns `model`, `order`, `n`, `k`, `loglik`,
 #'   `AIC`, `AICc`, `BIC`, `HQIC`, `start` and `end` (first and last dates of
-#'   the estimation sample) and `sample_id` (a fingerprint of the observed
-#'   values, used by [select_model()] to check that the models were fitted to
-#'   the same data). Row names are the model labels.
+#'   the estimation sample) and `sample_id` (an xxhash64 fingerprint of the
+#'   complete series: every observation in order, missing-value positions and
+#'   time attributes), used by [select_model()] to check that the models were
+#'   fitted to the same data. Row names are the model labels.
 #' @export
 compare_models <- function(..., names = NULL) {
   fits <- list(...)
@@ -139,8 +140,11 @@ order_search <- function(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0,
 #' `select_model()` stops unless `d` says which d to select within. It also
 #' stops if the remaining candidates were estimated on different numbers of
 #' observations. For tables from [compare_models()] it also checks that all
-#' candidates were fitted to the same observations: the same sample window and
-#' the same values (so `y` and `log(y)` over the same dates are not compared).
+#' candidates were fitted to the same observations: the same sample window,
+#' the same values in the same order and the same missing-value positions (so
+#' `y` and `log(y)` over the same dates are not compared). The check uses a
+#' hash of the complete series, a practical safeguard rather than a
+#' cryptographic guarantee.
 #'
 #' Fits estimated by conditional sum of squares (`method = "CSS"`) have no
 #' likelihood; their criteria are `NA` and they are never selected.
@@ -292,29 +296,21 @@ auto_arima_summary <- function(model) {
 }
 
 # Identity of the estimation sample: first and last dates of the observed
-# series and a fingerprint of its values, so that select_model() can tell
-# whether models were fitted to the same data (same window, same
-# transformation).
+# series and a fingerprint of the complete series, so that select_model() can
+# tell whether models were fitted to the same data (same window, same values,
+# same missing-value positions, same time attributes). The fingerprint is an
+# xxhash64 digest (package 'digest') of every observation in its original
+# order, with missing values kept in place, together with tsp(). It is a
+# practical safeguard, not a cryptographic guarantee.
 .sample_info <- function(fit) {
   y <- tryCatch(.response(fit), error = function(e) NULL)
   if (is.null(y)) return(list(start = NA_character_, end = NA_character_, id = NA_character_))
   v <- as.numeric(y)
   obs <- which(is.finite(v))
   lab <- .period_label(y, c(min(obs), max(obs)))
-  w <- seq_along(v)
-  ok <- is.finite(v)
-  id <- paste(length(v), sum(ok),
-              formatC(sum(v[ok]), digits = 12, format = "g"),
-              formatC(sum(v[ok]^2), digits = 12, format = "g"),
-              formatC(sum(w[ok] * v[ok]), digits = 12, format = "g"),
-              if (stats::is.ts(y)) paste(round(stats::tsp(y), 6), collapse = ",") else "",
-              sep = "|")
-  list(start = lab[1], end = lab[2], id = .short_hash(id))
-}
-
-# Compact 8-character checksum of a string (for display; not cryptographic).
-.short_hash <- function(x) {
-  h <- 5381
-  for (code in utf8ToInt(x)) h <- (h * 33 + code) %% 4294967296
-  sprintf("%04x%04x", as.integer(h %/% 65536), as.integer(h %% 65536))
+  id <- digest::digest(
+    list(values = v, tsp = if (stats::is.ts(y)) stats::tsp(y) else NULL),
+    algo = "xxhash64"
+  )
+  list(start = lab[1], end = lab[2], id = id)
 }

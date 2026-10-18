@@ -10,7 +10,7 @@ remotes::install_github("maarranz/ARIMA-Tools-R")
 library(arimatools)
 ```
 
-Requires R ≥ 4.1. Imports `forecast`, `ggplot2`, `patchwork` and `zoo`; `plotly` is optional (`interactive = TRUE`), and `tsoutliers` is needed only for `detect_outliers()`.
+Requires R ≥ 4.1. Imports `digest`, `forecast`, `ggplot2`, `patchwork` and `zoo`; `plotly` is optional (`interactive = TRUE`), and `tsoutliers` is needed only for `detect_outliers()`.
 
 ## Quick start
 

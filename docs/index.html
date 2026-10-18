@@ -377,11 +377,11 @@ psi-weight forecast-error variance have no direct R counterpart.</p>
 <h2 id="installation-and-loading">Installation and loading</h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># install.packages(&quot;remotes&quot;)</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;maarranz/ARIMA-Tools-R&quot;</span>)</span></code></pre></div>
-<p>Dependencies (<code>forecast</code>, <code>ggplot2</code>,
-<code>patchwork</code>, <code>zoo</code>) are installed automatically.
-<code>plotly</code> is optional and only needed for
-<code>interactive = TRUE</code>; <code>tsoutliers</code> is needed only
-for <code>detect_outliers()</code>.</p>
+<p>Dependencies (<code>digest</code>, <code>forecast</code>,
+<code>ggplot2</code>, <code>patchwork</code>, <code>zoo</code>) are
+installed automatically. <code>plotly</code> is optional and only needed
+for <code>interactive = TRUE</code>; <code>tsoutliers</code> is needed
+only for <code>detect_outliers()</code>.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forecast)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arimatools)</span></code></pre></div>
 <h3 id="small-example-used-below">Small example used below</h3>
@@ -491,10 +491,12 @@ for <code>d =</code>), fitted to the same observations, converged, and
 with a genuine likelihood (CSS-only fits have <code>NA</code> criteria).
 For tables from <code>compare_models()</code>, which record each model’s
 sample window (<code>start</code>, <code>end</code>) and a fingerprint
-of its data (<code>sample_id</code>), “the same observations” means the
-same window and the same values, so models for <code>y</code> and
-<code>log(y)</code>, or for two different windows with the same length,
-are not compared. Selection is not a diagnostic assessment.</p>
+of its complete series (<code>sample_id</code>: every observation in
+order, missing-value positions and time attributes), “the same
+observations” means the same window and the same values, so models for
+<code>y</code> and <code>log(y)</code>, or for two different windows
+with the same length, are not compared. Selection is not a diagnostic
+assessment.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alternative <span class="ot">&lt;-</span> <span class="fu">Arima</span>(y, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="at">include.mean =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>comparison <span class="ot">&lt;-</span> <span class="fu">compare_models</span>(fit, alternative, <span class="at">names =</span> <span class="fu">c</span>(<span class="st">&quot;ARMA(1,1)&quot;</span>, <span class="st">&quot;AR(1)&quot;</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>search <span class="ot">&lt;-</span> <span class="fu">order_search</span>(y, <span class="at">p_max =</span> <span class="dv">2</span>, <span class="at">q_max =</span> <span class="dv">2</span>, <span class="at">criterion =</span> <span class="st">&quot;BIC&quot;</span>,</span>

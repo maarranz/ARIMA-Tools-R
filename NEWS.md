@@ -1,3 +1,13 @@
+# arimatools 0.3.3
+
+* `compare_models()`'s `sample_id` is now a fingerprint of the complete series
+  (an xxhash64 digest from the 'digest' package of every observation in its
+  original order, with missing-value positions and time attributes), instead
+  of a checksum of summary statistics. Different series with identical sums,
+  squared sums and weighted sums, or with different missing-value positions,
+  no longer receive the same identifier, so `select_model()` rejects them.
+* New dependency: 'digest'.
+
 # arimatools 0.3.2
 
 Fixes the two remaining defects from the v0.3.1 final verification.

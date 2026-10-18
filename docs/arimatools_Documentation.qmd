@@ -75,7 +75,7 @@ Root and common-root checks, the Wald test, recursive estimation and parameter-s
 remotes::install_github("maarranz/ARIMA-Tools-R")
 ```
 
-Dependencies (`forecast`, `ggplot2`, `patchwork`, `zoo`) are installed automatically. `plotly` is optional and only needed for `interactive = TRUE`; `tsoutliers` is needed only for `detect_outliers()`.
+Dependencies (`digest`, `forecast`, `ggplot2`, `patchwork`, `zoo`) are installed automatically. `plotly` is optional and only needed for `interactive = TRUE`; `tsoutliers` is needed only for `detect_outliers()`.
 
 ```r
 library(forecast)
@@ -144,7 +144,7 @@ R's `residuals()` are standardized innovations, which differ from Statsmodels' r
 
 `compare_models()` accepts at least two fitted models, labelled by their order, by argument names (`compare_models(a = fit1, b = fit2)`) or by `names`. Its table includes the log likelihood, AIC, AICc, BIC, and HQIC, with k counting the innovation variance. Compare models for the same dependent variable and sample.
 
-The two operations are kept separate. `order_search()` **estimates and reports**: it fits every order from zero to `p_max`/`q_max`, and differencing orders from `d_min` through `d_max` (both default to zero), and reports all four criteria and the convergence status. Rows are grouped by d and sorted by `criterion` within each d; it never ranks models across different d. If the default CSS-ML estimation fails for a candidate, exact ML is tried and the status says so. `select_model()` is the only function that **chooses**, and it does so only when the criteria are comparable: models with the same d (choose d first, with unit-root tests and graphs; if the table has several d, `select_model()` asks for `d =`), fitted to the same observations, converged, and with a genuine likelihood (CSS-only fits have `NA` criteria). For tables from `compare_models()`, which record each model's sample window (`start`, `end`) and a fingerprint of its data (`sample_id`), "the same observations" means the same window and the same values, so models for `y` and `log(y)`, or for two different windows with the same length, are not compared. Selection is not a diagnostic assessment.
+The two operations are kept separate. `order_search()` **estimates and reports**: it fits every order from zero to `p_max`/`q_max`, and differencing orders from `d_min` through `d_max` (both default to zero), and reports all four criteria and the convergence status. Rows are grouped by d and sorted by `criterion` within each d; it never ranks models across different d. If the default CSS-ML estimation fails for a candidate, exact ML is tried and the status says so. `select_model()` is the only function that **chooses**, and it does so only when the criteria are comparable: models with the same d (choose d first, with unit-root tests and graphs; if the table has several d, `select_model()` asks for `d =`), fitted to the same observations, converged, and with a genuine likelihood (CSS-only fits have `NA` criteria). For tables from `compare_models()`, which record each model's sample window (`start`, `end`) and a fingerprint of its complete series (`sample_id`: every observation in order, missing-value positions and time attributes), "the same observations" means the same window and the same values, so models for `y` and `log(y)`, or for two different windows with the same length, are not compared. Selection is not a diagnostic assessment.
 
 ```r
 alternative <- Arima(y, order = c(1, 0, 0), include.mean = FALSE)
