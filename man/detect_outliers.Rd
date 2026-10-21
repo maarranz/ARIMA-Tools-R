@@ -94,3 +94,13 @@ interior date are distinct regressors, but become nearly collinear as
 
 Requires the 'tsoutliers' package.
 }
+\examples{
+set.seed(440)
+y <- ts(arima.sim(list(ar = 0.65), n = 160), start = c(1985, 1), frequency = 4)
+y[100] <- y[100] + 6   # additive outlier in 2009Q4
+if (requireNamespace("tsoutliers", quietly = TRUE)) {
+  found <- detect_outliers(y, order = c(1, 0, 0), include.constant = FALSE)
+  print(found)
+  coefficient_diagnostics(found$fit)
+}
+}

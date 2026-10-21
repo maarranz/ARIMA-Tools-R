@@ -27,3 +27,9 @@ A patchwork object (or a plotly widget when \code{interactive = TRUE}).
 \description{
 Upper panel: psi weights as stems. Lower panel: their cumulative sum.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+plot_dynamic_effects(fit, horizon = 12)
+}

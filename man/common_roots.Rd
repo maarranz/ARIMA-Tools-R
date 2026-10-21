@@ -24,3 +24,11 @@ most \code{tol}. Pairs within \code{exact_tol} are classified as "Common"; the r
 "Near-common". Such pairs may indicate cancellation between the AR and MA
 polynomials and possible overparameterization.
 }
+\examples{
+# An ARMA(1,1) fitted to white noise: AR and MA roots nearly cancel
+set.seed(3)
+wn <- rnorm(200)
+over <- forecast::Arima(wn, order = c(1, 0, 1), include.mean = FALSE)
+coef(over)
+common_roots(over)
+}

@@ -53,6 +53,14 @@ root_diagnostics <- function(fit) {
 #' @inheritParams root_diagnostics
 #' @param tol Numerical tolerance when comparing root moduli with one.
 #' @return A single logical value.
+#' @examples
+#' set.seed(1)
+#' y <- arima.sim(list(ar = 0.7), n = 200)
+#' fit <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+#' is_causal(fit)
+#' # With d = 1 the question concerns the AR part of the differenced model
+#' fit_d <- forecast::Arima(cumsum(y), order = c(1, 1, 0))
+#' is_causal(fit_d)
 #' @export
 is_causal <- function(fit, tol = 1e-10) {
   .check_fit(fit)
@@ -66,6 +74,11 @@ is_causal <- function(fit, tol = 1e-10) {
 #'
 #' @inheritParams is_causal
 #' @return A single logical value.
+#' @examples
+#' set.seed(1)
+#' y <- arima.sim(list(ma = 0.5), n = 200)
+#' fit <- forecast::Arima(y, order = c(0, 0, 1), include.mean = FALSE)
+#' is_invertible(fit)
 #' @export
 is_invertible <- function(fit, tol = 1e-10) {
   .check_fit(fit)
@@ -85,6 +98,13 @@ is_invertible <- function(fit, tol = 1e-10) {
 #' @param exact_tol Distance at or below which a pair is "Common".
 #' @return A data frame with columns `ar_root`, `ma_root`, `ar_inverse_root`,
 #'   `ma_inverse_root`, `distance` and `classification` (possibly zero rows).
+#' @examples
+#' # An ARMA(1,1) fitted to white noise: AR and MA roots nearly cancel
+#' set.seed(3)
+#' wn <- rnorm(200)
+#' over <- forecast::Arima(wn, order = c(1, 0, 1), include.mean = FALSE)
+#' coef(over)
+#' common_roots(over)
 #' @export
 common_roots <- function(fit, tol = 0.05, exact_tol = 1e-10) {
   .check_fit(fit)
@@ -122,6 +142,13 @@ common_roots <- function(fit, tol = 0.05, exact_tol = 1e-10) {
 #' @param title Plot title.
 #' @param interactive If `TRUE`, return a plotly widget (requires 'plotly').
 #' @return A ggplot object (or a plotly widget when `interactive = TRUE`).
+#' @examples
+#' # An ARMA(1,1) fitted to white noise: AR and MA roots nearly cancel
+#' set.seed(3)
+#' wn <- rnorm(200)
+#' over <- forecast::Arima(wn, order = c(1, 0, 1), include.mean = FALSE)
+#' plot_inverse_roots(over, title = "ARMA(1,1) fitted to white noise")
+#' # plot_inverse_roots(over, interactive = TRUE)   # plotly widget
 #' @export
 plot_inverse_roots <- function(fit, tol = 0.05, exact_tol = 1e-10,
                                title = "Inverse Roots", interactive = FALSE) {
@@ -195,6 +222,13 @@ plot_inverse_roots <- function(fit, tol = 0.05, exact_tol = 1e-10,
 #' @inheritParams common_roots
 #' @return A named list of class `arimatools_summary` (prints as a two-column
 #'   display; use `as.data.frame()` for a table).
+#' @examples
+#' # An ARMA(1,1) fitted to white noise: AR and MA roots nearly cancel
+#' set.seed(3)
+#' wn <- rnorm(200)
+#' over <- forecast::Arima(wn, order = c(1, 0, 1), include.mean = FALSE)
+#' root_summary(over)
+#' as.data.frame(root_summary(over))
 #' @export
 root_summary <- function(fit, tol = 0.05, exact_tol = 1e-10) {
   .check_fit(fit)
@@ -226,6 +260,12 @@ root_summary <- function(fit, tol = 0.05, exact_tol = 1e-10) {
 #' @param confidence Confidence level for the intervals.
 #' @return A data frame with columns `term`, `estimate`, `std.error`,
 #'   `statistic`, `p.value`, `conf.low` and `conf.high` (broom conventions).
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' coefficient_diagnostics(fit)
+#' coefficient_diagnostics(fit, confidence = 0.90)
 #' @export
 coefficient_diagnostics <- function(fit, confidence = 0.95) {
   .check_fit(fit)
@@ -259,6 +299,11 @@ coefficient_diagnostics <- function(fit, confidence = 0.95) {
 #'
 #' @inheritParams root_diagnostics
 #' @return A numeric correlation matrix with coefficient names as dimnames.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' parameter_correlation(fit)
 #' @export
 parameter_correlation <- function(fit) {
   .check_fit(fit)
@@ -272,6 +317,12 @@ parameter_correlation <- function(fit) {
 #'   `names(coef(fit))`, e.g. `c("ar2", "ma2")`).
 #' @return A named list of class `arimatools_summary` with the Wald statistic,
 #'   degrees of freedom and asymptotic chi-squared p-value.
+#' @examples
+#' set.seed(1)
+#' y <- arima.sim(list(ar = 0.7), n = 200)
+#' # AR(3) fitted to AR(1) data: are ar2 and ar3 jointly zero?
+#' fit3 <- forecast::Arima(y, order = c(3, 0, 0), include.mean = FALSE)
+#' joint_significance(fit3, c("ar2", "ar3"))
 #' @export
 joint_significance <- function(fit, parameters) {
   .check_fit(fit)

@@ -52,3 +52,10 @@ it directly.
 Intended as an automatic benchmark, not a replacement for specification
 analysis and diagnostics.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+auto <- auto_arima(y, criterion = "BIC", d = 0)
+auto
+coefficient_diagnostics(auto)
+}

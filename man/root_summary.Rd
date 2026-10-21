@@ -22,3 +22,11 @@ display; use \code{as.data.frame()} for a table).
 Causality, invertibility, and counts of common and near-common AR/MA root
 pairs, with the minimum AR-MA inverse-root distance among reported pairs.
 }
+\examples{
+# An ARMA(1,1) fitted to white noise: AR and MA roots nearly cancel
+set.seed(3)
+wn <- rnorm(200)
+over <- forecast::Arima(wn, order = c(1, 0, 1), include.mean = FALSE)
+root_summary(over)
+as.data.frame(root_summary(over))
+}

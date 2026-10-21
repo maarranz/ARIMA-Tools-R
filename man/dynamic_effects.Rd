@@ -27,3 +27,13 @@ weights would describe the transformed series, not the original one.
 
 Related: \code{\link[stats:ARMAtoMA]{stats::ARMAtoMA()}} for the stationary ARMA part only.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+dynamic_effects(fit, horizon = 8)
+# With d = 1 the effects are on the level and do not die out
+set.seed(2)
+rw <- forecast::Arima(cumsum(rnorm(200)), order = c(0, 1, 1))
+tail(dynamic_effects(rw, horizon = 8), 3)
+}

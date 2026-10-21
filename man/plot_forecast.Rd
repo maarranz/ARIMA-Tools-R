@@ -29,3 +29,9 @@ All numbers come from \code{\link[=dynamic_forecast]{dynamic_forecast()}}.
 \details{
 Related: \code{autoplot(forecast::forecast(fit))} draws Kalman-filter intervals.
 }
+\examples{
+set.seed(606)
+y <- ts(cumsum(0.15 + rnorm(160)), start = c(1985, 1), frequency = 4)
+fit <- forecast::Arima(y, order = c(0, 1, 0), include.drift = TRUE)
+plot_forecast(fit, steps = 12, history = 40)
+}

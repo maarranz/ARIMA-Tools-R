@@ -25,3 +25,14 @@ because the test assumes consecutive residuals.
 \details{
 Related: \code{stats::Box.test(residuals(fit), lag = h, type = "Ljung-Box", fitdf = p + q)} for one lag; \code{forecast::checkresiduals(fit)}.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+ljung_box_test(fit, lags = c(8, 12, 20))
+# A misspecified AR(1) leaves residual autocorrelation
+fit_ar1 <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+ljung_box_test(fit_ar1, lags = c(8, 12, 20))
+# Lags must exceed p + q (here 2):
+try(ljung_box_test(fit, lags = 2))
+}

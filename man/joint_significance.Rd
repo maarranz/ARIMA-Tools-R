@@ -20,3 +20,10 @@ degrees of freedom and asymptotic chi-squared p-value.
 \description{
 Wald test that a group of coefficients is jointly zero
 }
+\examples{
+set.seed(1)
+y <- arima.sim(list(ar = 0.7), n = 200)
+# AR(3) fitted to AR(1) data: are ar2 and ar3 jointly zero?
+fit3 <- forecast::Arima(y, order = c(3, 0, 0), include.mean = FALSE)
+joint_significance(fit3, c("ar2", "ar3"))
+}

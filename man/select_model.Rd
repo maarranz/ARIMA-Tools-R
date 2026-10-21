@@ -42,3 +42,14 @@ cryptographic guarantee.
 Fits estimated by conditional sum of squares (\code{method = "CSS"}) have no
 likelihood; their criteria are \code{NA} and they are never selected.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+grid <- order_search(y, p_max = 2, q_max = 2, include.constant = FALSE)
+select_model(grid, criterion = "BIC")
+select_model(grid, criterion = "AIC")
+# Criteria are not comparable across d: choose d first
+grid_d <- order_search(y, p_max = 1, q_max = 1, d_min = 0, d_max = 1)
+try(select_model(grid_d))
+select_model(grid_d, d = 0)
+}

@@ -27,6 +27,14 @@
 #' @inheritParams root_diagnostics
 #' @param steps Number of horizons (positive integer).
 #' @return A numeric vector of length `steps`.
+#' @examples
+#' set.seed(1010)
+#' y <- arima.sim(list(ar = 0.75), n = 250)
+#' fit <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+#' fev <- forecast_error_variance(fit, steps = 8)
+#' fev
+#' # The same variances from the Kalman filter
+#' all.equal(fev, as.numeric(predict(fit, n.ahead = 8)$se^2))
 #' @export
 forecast_error_variance <- function(fit, steps = 20) {
   .check_fit(fit)
@@ -97,6 +105,14 @@ forecast_error_variance <- function(fit, steps = 20) {
 #' @param level Coverage of the central prediction interval.
 #' @return A data frame with columns `horizon`, `forecast`, `fev`, `se`,
 #'   `lower` and `upper`.
+#' @examples
+#' set.seed(1010)
+#' y <- arima.sim(list(ar = 0.75), n = 250)
+#' fit <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+#' fc <- dynamic_forecast(fit, steps = 8, level = 0.90)
+#' fc
+#' # phi^h * y_T
+#' coef(fit)[["ar1"]]^(1:8) * as.numeric(y[250])
 #' @export
 dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
   .check_fit(fit)
@@ -197,6 +213,11 @@ dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
 #' @param history Number of final observations to display (`NULL` = all).
 #' @param interactive If `TRUE`, return a plotly widget (requires 'plotly').
 #' @return A ggplot object (or a plotly widget when `interactive = TRUE`).
+#' @examples
+#' set.seed(606)
+#' y <- ts(cumsum(0.15 + rnorm(160)), start = c(1985, 1), frequency = 4)
+#' fit <- forecast::Arima(y, order = c(0, 1, 0), include.drift = TRUE)
+#' plot_forecast(fit, steps = 12, history = 40)
 #' @export
 plot_forecast <- function(fit, steps = 20, level = 0.95, history = 50,
                           interactive = FALSE) {
@@ -239,6 +260,11 @@ plot_forecast <- function(fit, steps = 20, level = 0.95, history = 50,
 #' @inheritParams plot_forecast
 #' @param levels Distinct coverages in (0, 1); order does not matter.
 #' @return A ggplot object (or a plotly widget when `interactive = TRUE`).
+#' @examples
+#' set.seed(33)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.45), n = 250)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' plot_fan_chart(fit, steps = 20, levels = c(0.50, 0.80, 0.95), history = 60)
 #' @export
 plot_fan_chart <- function(fit, steps = 20,
                            levels = c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99),

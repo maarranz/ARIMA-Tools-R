@@ -23,3 +23,9 @@ bounds +/- z / sqrt(T); they are not a joint test (use \code{\link[=ljung_box_te
 Residuals with gaps inside the sample are rejected, because the lags would
 no longer correspond to calendar distances.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+head(residual_correlations(fit, lags = 12))
+}

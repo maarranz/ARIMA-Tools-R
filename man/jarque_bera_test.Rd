@@ -19,3 +19,9 @@ The statistic uses the (biased) sample skewness and kurtosis, as in
 are the bias-corrected versions; kurtosis is on the scale where the Normal
 distribution has kurtosis 3.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+jarque_bera_test(fit)
+}

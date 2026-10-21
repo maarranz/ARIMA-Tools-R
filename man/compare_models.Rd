@@ -31,3 +31,13 @@ and the same effective sample (in particular, the same d). Fits estimated by
 conditional sum of squares (\code{method = "CSS"}) have no likelihood, so their
 criteria are reported as \code{NA}.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+fit_ar1 <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+fit_ma1 <- forecast::Arima(y, order = c(0, 0, 1), include.mean = FALSE)
+cmp <- compare_models(AR1 = fit_ar1, MA1 = fit_ma1, ARMA11 = fit)
+cmp[, c("model", "k", "loglik", "AIC", "BIC")]
+select_model(cmp, "BIC")
+}

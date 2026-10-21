@@ -39,3 +39,12 @@ transformation (\code{lambda}), whose point forecasts and variances would be on
 different scales, and series with missing values, for which the psi-weight
 variances understate the uncertainty.
 }
+\examples{
+set.seed(1010)
+y <- arima.sim(list(ar = 0.75), n = 250)
+fit <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+fc <- dynamic_forecast(fit, steps = 8, level = 0.90)
+fc
+# phi^h * y_T
+coef(fit)[["ar1"]]^(1:8) * as.numeric(y[250])
+}

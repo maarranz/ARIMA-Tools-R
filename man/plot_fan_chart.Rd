@@ -36,3 +36,9 @@ the point forecast drawn on top. Each band comes from \code{\link[=dynamic_forec
 Related: the 'fanplot' package draws fan charts in base graphics from
 simulated paths.
 }
+\examples{
+set.seed(33)
+y <- arima.sim(list(ar = 0.7, ma = 0.45), n = 250)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+plot_fan_chart(fit, steps = 20, levels = c(0.50, 0.80, 0.95), history = 60)
+}

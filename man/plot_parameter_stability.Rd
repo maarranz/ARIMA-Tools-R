@@ -37,3 +37,10 @@ an optional dashed line at the full-sample estimate, and an optional
 vertical line at a known or hypothesized break point. The break point is a
 graphical reference only; it is not a formal test.
 }
+\examples{
+set.seed(901)
+y <- ts(arima.sim(list(ar = 0.6), n = 160), start = c(1985, 1), frequency = 4)
+rec <- recursive_estimation(y, order = c(1, 0, 0), initial = 120,
+                            include.constant = FALSE)
+plot_parameter_stability(rec, breakpoint = as.Date("2010-01-01"))
+}

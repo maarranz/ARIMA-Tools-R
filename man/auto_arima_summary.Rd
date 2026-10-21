@@ -19,3 +19,8 @@ d = 0 a mean is the unconditional mean of the stationary process; for d = 1
 a drift is a constant in the differenced model, i.e. a linear trend in the
 level.
 }
+\examples{
+set.seed(606)
+y <- ts(cumsum(0.15 + rnorm(220)))   # random walk with drift
+auto_arima_summary(auto_arima(y))
+}

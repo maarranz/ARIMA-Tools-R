@@ -56,3 +56,11 @@ freedom. Routine estimation warnings are silenced; convergence status is
 kept in the output. If the default CSS-ML estimation fails at an endpoint,
 exact ML is tried before recording the endpoint as failed.
 }
+\examples{
+set.seed(901)
+y <- ts(arima.sim(list(ar = 0.6), n = 160), start = c(1985, 1), frequency = 4)
+rec <- recursive_estimation(y, order = c(1, 0, 0), initial = 120,
+                            include.constant = FALSE)
+head(rec)
+attr(rec, "failures")
+}

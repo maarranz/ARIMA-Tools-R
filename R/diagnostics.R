@@ -14,6 +14,16 @@
 #' @inheritParams root_diagnostics
 #' @param lags Integer vector of lags.
 #' @return A data frame with columns `lag`, `statistic`, `df` and `p.value`.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' ljung_box_test(fit, lags = c(8, 12, 20))
+#' # A misspecified AR(1) leaves residual autocorrelation
+#' fit_ar1 <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+#' ljung_box_test(fit_ar1, lags = c(8, 12, 20))
+#' # Lags must exceed p + q (here 2):
+#' try(ljung_box_test(fit, lags = 2))
 #' @export
 ljung_box_test <- function(fit, lags) {
   .check_fit(fit)
@@ -51,6 +61,11 @@ ljung_box_test <- function(fit, lags) {
 #' @param lags Maximum lag.
 #' @param confidence Confidence level for the bounds.
 #' @return A data frame with columns `lag`, `acf`, `pacf`, `lower` and `upper`.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' head(residual_correlations(fit, lags = 12))
 #' @export
 residual_correlations <- function(fit, lags = 20, confidence = 0.95) {
   .check_fit(fit)
@@ -113,6 +128,11 @@ residual_correlations <- function(fit, lags = 20, confidence = 0.95) {
 #' @param title Overall title.
 #' @param interactive If `TRUE`, return a plotly widget (requires 'plotly').
 #' @return A patchwork object (or a plotly widget when `interactive = TRUE`).
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' plot_residual_diagnostics(fit, lags = 12)
 #' @export
 plot_residual_diagnostics <- function(fit, lags = 20, confidence = 0.95,
                                       title = "Residual Diagnostics",
@@ -170,6 +190,11 @@ plot_residual_diagnostics <- function(fit, lags = 20, confidence = 0.95,
 #'
 #' @inheritParams root_diagnostics
 #' @return A named list of class `arimatools_summary`.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' jarque_bera_test(fit)
 #' @export
 jarque_bera_test <- function(fit) {
   .check_fit(fit)
@@ -210,6 +235,15 @@ jarque_bera_test <- function(fit) {
 #' @inheritParams root_diagnostics
 #' @param horizon Maximum horizon (non-negative integer).
 #' @return A data frame with columns `horizon`, `effect` and `cumulative`.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' dynamic_effects(fit, horizon = 8)
+#' # With d = 1 the effects are on the level and do not die out
+#' set.seed(2)
+#' rw <- forecast::Arima(cumsum(rnorm(200)), order = c(0, 1, 1))
+#' tail(dynamic_effects(rw, horizon = 8), 3)
 #' @export
 dynamic_effects <- function(fit, horizon = 20) {
   .check_fit(fit)
@@ -227,6 +261,11 @@ dynamic_effects <- function(fit, horizon = 20) {
 #' @param title Overall title.
 #' @param interactive If `TRUE`, return a plotly widget (requires 'plotly').
 #' @return A patchwork object (or a plotly widget when `interactive = TRUE`).
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' plot_dynamic_effects(fit, horizon = 12)
 #' @export
 plot_dynamic_effects <- function(fit, horizon = 20,
                                  title = "Dynamic Effects of an Innovation",
@@ -292,6 +331,13 @@ plot_dynamic_effects <- function(fit, horizon = 20,
 #'   other `ts`, and the observation number otherwise. Endpoints where
 #'   estimation failed have one row with missing values; the error messages are
 #'   kept in `attr(result, "failures")`.
+#' @examples
+#' set.seed(901)
+#' y <- ts(arima.sim(list(ar = 0.6), n = 160), start = c(1985, 1), frequency = 4)
+#' rec <- recursive_estimation(y, order = c(1, 0, 0), initial = 120,
+#'                             include.constant = FALSE)
+#' head(rec)
+#' attr(rec, "failures")
 #' @export
 recursive_estimation <- function(y, order, initial = NULL, min_df = 20,
                                  confidence = 0.95, include.constant = NULL,
@@ -422,6 +468,12 @@ recursive_estimation <- function(y, order, initial = NULL, min_df = 20,
 #' @param title Plot title.
 #' @param interactive If `TRUE`, return a plotly widget (requires 'plotly').
 #' @return A ggplot object (or a plotly widget when `interactive = TRUE`).
+#' @examples
+#' set.seed(901)
+#' y <- ts(arima.sim(list(ar = 0.6), n = 160), start = c(1985, 1), frequency = 4)
+#' rec <- recursive_estimation(y, order = c(1, 0, 0), initial = 120,
+#'                             include.constant = FALSE)
+#' plot_parameter_stability(rec, breakpoint = as.Date("2010-01-01"))
 #' @export
 plot_parameter_stability <- function(recursive, parameters = NULL,
                                      reference = TRUE, breakpoint = NULL,

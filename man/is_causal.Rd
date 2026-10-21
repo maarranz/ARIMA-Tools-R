@@ -20,3 +20,12 @@ A single logical value.
 models this refers to the AR polynomial of the stationary ARMA component,
 not to the stationarity of the original series when d > 0.
 }
+\examples{
+set.seed(1)
+y <- arima.sim(list(ar = 0.7), n = 200)
+fit <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+is_causal(fit)
+# With d = 1 the question concerns the AR part of the differenced model
+fit_d <- forecast::Arima(cumsum(y), order = c(1, 1, 0))
+is_causal(fit_d)
+}

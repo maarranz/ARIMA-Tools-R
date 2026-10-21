@@ -161,9 +161,14 @@
 #' @examples
 #' set.seed(1)
 #' y <- ts(cumsum(rnorm(100)), start = c(2000, 1), frequency = 4)
-#' X <- outlier_regressors(y, dates = c("2008Q4", "2020Q2"), types = c("LS", "AO"))
+#' X <- outlier_regressors(y, dates = c("2008Q4", "2020Q2", "2020Q3"),
+#'                         types = c("LS", "AO", "TC"), delta = 0.7)
+#' colnames(X)
+#' attr(X, "outliers")
 #' fit <- forecast::Arima(y, order = c(1, 1, 0), xreg = X)
 #' coefficient_diagnostics(fit)
+#' # Series without calendar time: observation numbers
+#' colnames(outlier_regressors(as.numeric(y), positions = 35, types = "AO"))
 #' @export
 outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
                                positions = NULL) {
@@ -287,6 +292,15 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
 #'   (combined outlier effect, a `ts`), `adjusted` (series minus effects),
 #'   `y`, `order`, `cval`, `delta`, `auto` (was the order selected?),
 #'   `converged` (did the final fit converge?) and `warnings`.
+#' @examples
+#' set.seed(440)
+#' y <- ts(arima.sim(list(ar = 0.65), n = 160), start = c(1985, 1), frequency = 4)
+#' y[100] <- y[100] + 6   # additive outlier in 2009Q4
+#' if (requireNamespace("tsoutliers", quietly = TRUE)) {
+#'   found <- detect_outliers(y, order = c(1, 0, 0), include.constant = FALSE)
+#'   print(found)
+#'   coefficient_diagnostics(found$fit)
+#' }
 #' @export
 detect_outliers <- function(x, order = NULL, types = c("AO", "LS", "TC"),
                             cval = NULL, delta = 0.7, include.constant = NULL,
@@ -563,6 +577,18 @@ print.arimatools_outliers <- function(x, digits = 4, ...) {
 #' @param title Overall title.
 #' @param interactive If `TRUE`, return a plotly widget (requires 'plotly').
 #' @return A patchwork object (or a plotly widget when `interactive = TRUE`).
+#' @examples
+#' set.seed(440)
+#' y <- ts(arima.sim(list(ar = 0.65), n = 160), start = c(1985, 1), frequency = 4)
+#' y[100] <- y[100] + 6   # additive outlier in 2009Q4
+#' # Outlier chosen by hand
+#' X <- outlier_regressors(y, dates = "2009Q4", types = "AO")
+#' fit <- forecast::Arima(y, order = c(1, 0, 0), xreg = X, include.mean = FALSE)
+#' plot_outliers(fit)
+#' # Outliers found by detect_outliers()
+#' if (requireNamespace("tsoutliers", quietly = TRUE)) {
+#'   plot_outliers(detect_outliers(y, order = c(1, 0, 0), include.constant = FALSE))
+#' }
 #' @export
 plot_outliers <- function(x, title = "Outlier Effects", interactive = FALSE) {
   if (inherits(x, "arimatools_outliers")) {

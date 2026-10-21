@@ -1,7 +1,7 @@
 Package: arimatools
 Type: Package
 Title: Teaching-Oriented Tools for Empirical ARIMA Modelling
-Version: 0.4.1
+Version: 0.4.2
 Authors@R: person("Miguel A.", "Arranz", email = "maarranz@eco.uc3m.es",
     role = c("aut", "cre"), comment = c(ORCID = "0000-0002-5951-2284"))
 Description: Tables, summaries, numerical forecasts and figures for empirical

@@ -36,3 +36,11 @@ The axis range expands automatically if a root lies outside the circle.
 Related: \code{forecast::autoplot(fit)} draws the inverse roots in separate AR and
 MA panels, without the common-root markers.
 }
+\examples{
+# An ARMA(1,1) fitted to white noise: AR and MA roots nearly cancel
+set.seed(3)
+wn <- rnorm(200)
+over <- forecast::Arima(wn, order = c(1, 0, 1), include.mean = FALSE)
+plot_inverse_roots(over, title = "ARMA(1,1) fitted to white noise")
+# plot_inverse_roots(over, interactive = TRUE)   # plotly widget
+}

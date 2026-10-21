@@ -18,3 +18,9 @@ A single logical value.
 \description{
 \code{TRUE} when every MA root lies outside the unit circle.
 }
+\examples{
+set.seed(1)
+y <- arima.sim(list(ma = 0.5), n = 200)
+fit <- forecast::Arima(y, order = c(0, 0, 1), include.mean = FALSE)
+is_invertible(fit)
+}

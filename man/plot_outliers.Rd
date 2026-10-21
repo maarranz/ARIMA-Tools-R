@@ -34,3 +34,16 @@ the same date share one marker (a diamond), whose tooltip lists them all.
 Models with a Box-Cox transformation (\code{lambda}) are rejected, because their
 effects are on the transformed scale.
 }
+\examples{
+set.seed(440)
+y <- ts(arima.sim(list(ar = 0.65), n = 160), start = c(1985, 1), frequency = 4)
+y[100] <- y[100] + 6   # additive outlier in 2009Q4
+# Outlier chosen by hand
+X <- outlier_regressors(y, dates = "2009Q4", types = "AO")
+fit <- forecast::Arima(y, order = c(1, 0, 0), xreg = X, include.mean = FALSE)
+plot_outliers(fit)
+# Outliers found by detect_outliers()
+if (requireNamespace("tsoutliers", quietly = TRUE)) {
+  plot_outliers(detect_outliers(y, order = c(1, 0, 0), include.constant = FALSE))
+}
+}

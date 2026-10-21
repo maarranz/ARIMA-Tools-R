@@ -20,6 +20,15 @@
 #'   complete series: every observation in order, missing-value positions and
 #'   time attributes), used by [select_model()] to check that the models were
 #'   fitted to the same data. Row names are the model labels.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+#' fit_ar1 <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+#' fit_ma1 <- forecast::Arima(y, order = c(0, 0, 1), include.mean = FALSE)
+#' cmp <- compare_models(AR1 = fit_ar1, MA1 = fit_ma1, ARMA11 = fit)
+#' cmp[, c("model", "k", "loglik", "AIC", "BIC")]
+#' select_model(cmp, "BIC")
 #' @export
 compare_models <- function(..., names = NULL) {
   fits <- list(...)
@@ -77,6 +86,11 @@ compare_models <- function(..., names = NULL) {
 #' @param ... Further arguments for [forecast::Arima()] (e.g. `method = "ML"`).
 #' @return A data frame with columns `model`, `p`, `d`, `q`, `n`, `k`,
 #'   `loglik`, `AIC`, `AICc`, `BIC`, `HQIC`, `converged` and `status`.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' grid <- order_search(y, p_max = 2, q_max = 2, include.constant = FALSE)
+#' head(grid[, c("model", "k", "AIC", "BIC", "status")])
 #' @export
 order_search <- function(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0,
                          criterion = "BIC", include.constant = NULL, ...) {
@@ -154,6 +168,16 @@ order_search <- function(y, p_max = 4, q_max = 4, d_min = 0, d_max = 0,
 #' @param d Order of differencing to select within. Needed only when the table
 #'   contains several values of d.
 #' @return The selected row, as a one-row data frame.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' grid <- order_search(y, p_max = 2, q_max = 2, include.constant = FALSE)
+#' select_model(grid, criterion = "BIC")
+#' select_model(grid, criterion = "AIC")
+#' # Criteria are not comparable across d: choose d first
+#' grid_d <- order_search(y, p_max = 1, q_max = 1, d_min = 0, d_max = 1)
+#' try(select_model(grid_d))
+#' select_model(grid_d, d = 0)
 #' @export
 select_model <- function(table, criterion = "BIC", d = NULL) {
   crit <- .match_criterion(criterion)
@@ -231,6 +255,12 @@ select_model <- function(table, criterion = "BIC", d = NULL) {
 #'   change the selected model).
 #' @param ... Further arguments for [forecast::auto.arima()].
 #' @return A fitted `forecast_ARIMA`/`Arima` object with attribute `ic`.
+#' @examples
+#' set.seed(12345)
+#' y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+#' auto <- auto_arima(y, criterion = "BIC", d = 0)
+#' auto
+#' coefficient_diagnostics(auto)
 #' @export
 auto_arima <- function(y, criterion = "BIC", d = NULL, max_p = 5, max_q = 5,
                        stepwise = TRUE, allow_mean = TRUE, allow_drift = TRUE,
@@ -260,6 +290,10 @@ auto_arima <- function(y, criterion = "BIC", d = NULL, max_p = 5, max_q = 5,
 #' @param model Output of [auto_arima()] (any fitted `Arima` object works; the
 #'   selection criterion is then reported as `NA`).
 #' @return A named list of class `arimatools_summary`.
+#' @examples
+#' set.seed(606)
+#' y <- ts(cumsum(0.15 + rnorm(220)))   # random walk with drift
+#' auto_arima_summary(auto_arima(y))
 #' @export
 auto_arima_summary <- function(model) {
   .check_fit(model, "model")

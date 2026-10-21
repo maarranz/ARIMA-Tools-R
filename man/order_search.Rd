@@ -48,3 +48,9 @@ With \code{method = "CSS"} there is no likelihood, so the criteria are \code{NA}
 
 Related: \code{forecast::auto.arima(y, stepwise = FALSE, approximation = FALSE, trace = TRUE)} prints a similar search but does not return the table.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+grid <- order_search(y, p_max = 2, q_max = 2, include.constant = FALSE)
+head(grid[, c("model", "k", "AIC", "BIC", "status")])
+}

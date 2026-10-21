@@ -39,3 +39,12 @@ whereas \code{\link[stats:arima]{stats::arima()}} and Statsmodels report the ML 
 Models with a Box-Cox transformation (\code{lambda}) and series with missing
 values are rejected (see Details of \code{\link[=dynamic_forecast]{dynamic_forecast()}}).
 }
+\examples{
+set.seed(1010)
+y <- arima.sim(list(ar = 0.75), n = 250)
+fit <- forecast::Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+fev <- forecast_error_variance(fit, steps = 8)
+fev
+# The same variances from the Kalman filter
+all.equal(fev, as.numeric(predict(fit, n.ahead = 8)$se^2))
+}

@@ -37,3 +37,9 @@ Related: \code{forecast::checkresiduals(fit)} (residuals, ACF, histogram, one
 Ljung-Box test) and \code{stats::tsdiag(fit)} (whose Ljung-Box p-values are
 \emph{not} adjusted for the estimated parameters).
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+plot_residual_diagnostics(fit, lags = 12)
+}

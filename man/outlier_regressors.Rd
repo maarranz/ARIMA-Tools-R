@@ -50,7 +50,12 @@ identify them.
 \examples{
 set.seed(1)
 y <- ts(cumsum(rnorm(100)), start = c(2000, 1), frequency = 4)
-X <- outlier_regressors(y, dates = c("2008Q4", "2020Q2"), types = c("LS", "AO"))
+X <- outlier_regressors(y, dates = c("2008Q4", "2020Q2", "2020Q3"),
+                        types = c("LS", "AO", "TC"), delta = 0.7)
+colnames(X)
+attr(X, "outliers")
 fit <- forecast::Arima(y, order = c(1, 1, 0), xreg = X)
 coefficient_diagnostics(fit)
+# Series without calendar time: observation numbers
+colnames(outlier_regressors(as.numeric(y), positions = 35, types = "AO"))
 }

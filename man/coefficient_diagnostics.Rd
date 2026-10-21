@@ -27,3 +27,10 @@ p-value threshold.
 
 Related: \code{lmtest::coeftest(fit)} and \code{confint(fit)} give the same numbers.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+coefficient_diagnostics(fit)
+coefficient_diagnostics(fit, confidence = 0.90)
+}

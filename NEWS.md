@@ -1,3 +1,13 @@
+# arimatools 0.4.2
+
+* Every exported function has runnable examples in its help page, on small
+  simulated series with a known data-generating process (about 5 seconds for
+  all examples together). They are run by `R CMD check`, so they are tested
+  on every push.
+* API guide: documents the 0.3.4 behaviour (strict `types` and outlier
+  names, the MA unit-root warning, interior gaps in `recursive_estimation()`)
+  and points to the help-page examples and the vignettes.
+
 # arimatools 0.4.1
 
 * The vignettes are now R Markdown instead of Quarto, with the same content.

@@ -22,3 +22,9 @@ Unlike Statsmodels, R does not report a covariance for the innovation
 variance, so \code{sigma2} is never included. Equivalent to
 \code{cov2cor(vcov(fit))}.
 }
+\examples{
+set.seed(12345)
+y <- arima.sim(list(ar = 0.7, ma = 0.4), n = 240)
+fit <- forecast::Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+parameter_correlation(fit)
+}
