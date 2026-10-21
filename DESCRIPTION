@@ -1,7 +1,7 @@
 Package: arimatools
 Type: Package
 Title: Teaching-Oriented Tools for Empirical ARIMA Modelling
-Version: 0.4.0
+Version: 0.4.1
 Authors@R: person("Miguel A.", "Arranz", email = "maarranz@eco.uc3m.es",
     role = c("aut", "cre"), comment = c(ORCID = "0000-0002-5951-2284"))
 Description: Tables, summaries, numerical forecasts and figures for empirical
@@ -16,7 +16,6 @@ URL: https://github.com/maarranz/ARIMA-Tools-R
 BugReports: https://github.com/maarranz/ARIMA-Tools-R/issues
 Encoding: UTF-8
 Depends: R (>= 4.1)
-SystemRequirements: Quarto command line tool (>= 1.4) to build the vignettes
 Imports:
     digest,
     forecast (>= 8.21),
@@ -29,10 +28,10 @@ Suggests:
     knitr,
     lmtest,
     plotly,
-    quarto,
+    rmarkdown,
     testthat (>= 3.0.0),
     tsoutliers
-VignetteBuilder: quarto
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.1.1

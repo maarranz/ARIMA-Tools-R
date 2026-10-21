@@ -34,8 +34,6 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
-      # Needed once the vignettes are written in Quarto.
-      - uses: quarto-dev/quarto-actions/setup@v2
 
       - uses: r-lib/actions/setup-r@v2
         with:

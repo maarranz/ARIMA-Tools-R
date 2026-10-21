@@ -7,4 +7,3 @@
 ^\.github$
 ^vignettes/.*\.html$
 ^vignettes/.*_files$
-^vignettes/\.quarto$

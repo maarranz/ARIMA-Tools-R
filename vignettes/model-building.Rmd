@@ -1,22 +1,19 @@
 ---
 title: "Model building: estimation and selection"
 author: "Miguel A. Arranz"
+output:
+  rmarkdown::html_vignette:
+    toc: true
 vignette: >
   %\VignetteIndexEntry{Model building: estimation and selection}
-  %\VignetteEngine{quarto::html}
+  %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-format:
-  html:
-    toc: true
-    embed-resources: true
-    self-contained-math: true
-knitr:
-  opts_chunk:
-    collapse: true
-    comment: "#>"
-    fig-width: 7
-    fig-height: 4.5
 ---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5)
+```
+
 
 This vignette shows how arimatools supports the estimation and selection of
 ARMA models: coefficient tables, residual correlations for
@@ -25,8 +22,7 @@ General-to-Specific reduction, transparent information-criterion searches,
 and AutoARIMA as a benchmark. The econometric theory is in the ATSE course
 material; here the emphasis is on the functions.
 
-```{r}
-#| message: false
+```{r, message = FALSE}
 library(forecast)
 library(arimatools)
 ```
@@ -181,8 +177,7 @@ of differencing, because differencing changes the effective sample. A grid
 over several $d$ is allowed for inspection, but `select_model()` then needs
 to be told which $d$ to select within:
 
-```{r}
-#| error: true
+```{r, error = TRUE}
 grid_d <- order_search(y, p_max = 1, q_max = 1, d_min = 0, d_max = 1)
 select_model(grid_d)
 select_model(grid_d, d = 0)
@@ -217,8 +212,7 @@ select_model(cmp, "BIC")
 `select_model()` refuses to compare models fitted to different observations,
 such as different sample windows or a series and its logarithm:
 
-```{r}
-#| error: true
+```{r, error = TRUE}
 z <- ts(50 + cumsum(rnorm(120, 0.3)), start = c(1990, 1), frequency = 4)
 select_model(compare_models(level = Arima(z, c(1, 1, 0)),
                             log = Arima(log(z), c(1, 1, 0))))
@@ -231,8 +225,7 @@ The functions above can be combined in a Monte Carlo experiment that counts
 how often each criterion selects the true model. The code is shown but not
 run here, since it takes a few minutes.
 
-```{r}
-#| eval: false
+```{r, eval = FALSE}
 pick <- function(T_obs) {
   y <- arima.sim(model = list(ar = 0.7, ma = 0.4), n = T_obs, n.start = 200)
   grid <- suppressWarnings(order_search(y, p_max = 3, q_max = 3,

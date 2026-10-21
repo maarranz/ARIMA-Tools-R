@@ -1,33 +1,28 @@
 ---
 title: "Diagnostics, integration and interventions"
 author: "Miguel A. Arranz"
+output:
+  rmarkdown::html_vignette:
+    toc: true
 vignette: >
   %\VignetteIndexEntry{Diagnostics, integration and interventions}
-  %\VignetteEngine{quarto::html}
+  %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-format:
-  html:
-    toc: true
-    embed-resources: true
-    self-contained-math: true
-knitr:
-  opts_chunk:
-    collapse: true
-    comment: "#>"
-    fig-width: 7
-    fig-height: 4.5
 ---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5)
+```
+
 
 A selected model still has to be checked. This vignette covers the
 diagnostic functions of arimatools, the deterministic terms of integrated
 models, recursive parameter stability, and intervention (outlier) models:
 regressors for dates you choose, automatic detection, and effect plots.
 
-```{r}
-#| message: false
+```{r, message = FALSE}
 library(forecast)
 library(arimatools)
-has_tso <- requireNamespace("tsoutliers", quietly = TRUE)
 ```
 
 ## The diagnostic battery
@@ -61,8 +56,7 @@ question to a function.
 white-noise bounds, and the Ljung-Box p-values by lag with a 5% reference
 line.
 
-```{r}
-#| fig-height: 9
+```{r, fig.height = 9}
 plot_residual_diagnostics(fit_arma11, lags = 20,
                           title = "Residual Diagnostics: ARMA(1,1)")
 ```
@@ -71,8 +65,7 @@ plot_residual_diagnostics(fit_arma11, lags = 20,
 are corrected for the estimated ARMA coefficients, $h - (p + q)$, so only
 lags larger than $p + q$ are accepted.
 
-```{r}
-#| error: true
+```{r, error = TRUE}
 ljung_box_test(fit_arma11, lags = c(8, 12, 20))
 ljung_box_test(fit_ar1, lags = c(8, 12, 20))
 ljung_box_test(fit_arma11, lags = 2)
@@ -101,8 +94,7 @@ ARMA(1,1) data, an ARMA(4,4) has AR and MA inverse roots that nearly cancel
 in pairs (distance below `tol = 0.05`). They are marked with a cross in the
 inverse-root plot.
 
-```{r}
-#| fig-height: 5
+```{r, fig.height = 5}
 fit_arma44 <- Arima(y, order = c(4, 0, 4), include.mean = FALSE,
                     optim.control = list(maxit = 1000))
 common_roots(fit_arma44)
@@ -236,8 +228,7 @@ coef(Arima(y_ao, order = c(1, 0, 0), include.mean = FALSE))["ar1"]
 `outlier_regressors()`. It shows the observed and outlier-adjusted series,
 with outlier dates marked by type, and the combined outlier effect.
 
-```{r}
-#| fig-height: 6
+```{r, fig.height = 6}
 plot_outliers(fit_ao, title = "Additive outlier: estimated effect")
 ```
 
@@ -249,15 +240,12 @@ re-estimates the final model with regressors from `outlier_regressors()`.
 The model can be given as a fitted model, as a fixed order, or left to
 AutoARIMA. It requires the 'tsoutliers' package.
 
-```{r}
-#| eval: !expr has_tso
+```{r, eval = requireNamespace("tsoutliers", quietly = TRUE)}
 found <- detect_outliers(y_ao, order = c(1, 0, 0), include.constant = FALSE)
 found
 ```
 
-```{r}
-#| eval: !expr has_tso
-#| fig-height: 6
+```{r, eval = requireNamespace("tsoutliers", quietly = TRUE), fig.height = 6}
 plot_outliers(found, title = "Detected outlier effects")
 ```
 

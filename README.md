@@ -10,7 +10,7 @@ remotes::install_github("maarranz/ARIMA-Tools-R")
 library(arimatools)
 ```
 
-To also install the vignettes (worked examples), which requires the [Quarto](https://quarto.org) command-line tool:
+To also install the vignettes (worked examples):
 
 ```r
 remotes::install_github("maarranz/ARIMA-Tools-R", dependencies = TRUE, build_vignettes = TRUE)

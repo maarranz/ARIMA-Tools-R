@@ -1,22 +1,19 @@
 ---
 title: "Dynamic forecasting"
 author: "Miguel A. Arranz"
+output:
+  rmarkdown::html_vignette:
+    toc: true
 vignette: >
   %\VignetteIndexEntry{Dynamic forecasting}
-  %\VignetteEngine{quarto::html}
+  %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-format:
-  html:
-    toc: true
-    embed-resources: true
-    self-contained-math: true
-knitr:
-  opts_chunk:
-    collapse: true
-    comment: "#>"
-    fig-width: 7
-    fig-height: 4.5
 ---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5)
+```
+
 
 This vignette covers the forecasting functions of arimatools. Point forecasts
 come from `forecast::forecast()`. Forecast uncertainty is built from the
@@ -27,8 +24,7 @@ the growth of its uncertainty can be traced back to the model:
 - `forecast_error_variance()` and `dynamic_effects()` expose the $\psi$-weights behind them;
 - `plot_forecast()` and `plot_fan_chart()` draw them.
 
-```{r}
-#| message: false
+```{r, message = FALSE}
 library(forecast)
 library(arimatools)
 library(ggplot2)
@@ -78,8 +74,7 @@ fit_arma11 <- Arima(arima.sim(list(ar = 0.70, ma = 0.45), n = 250),
 dynamic_effects(fit_ma2, horizon = 5)
 ```
 
-```{r}
-#| fig-height: 6
+```{r, fig.height = 6}
 plot_dynamic_effects(fit_arma11, horizon = 12, title = "ARMA(1,1): psi-weights")
 ```
 
@@ -190,8 +185,7 @@ A constant in the second-difference equation, which `forecast::Arima()`
 does not allow with $d = 2$, can be supplied as the regressor
 $x_t = t^2/2$, whose second difference is one:
 
-```{r}
-#| error: true
+```{r, error = TRUE}
 set.seed(808)
 n2 <- 220
 y_i2c <- ts(cumsum(cumsum(0.025 + rnorm(n2, sd = 0.25))))

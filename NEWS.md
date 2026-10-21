@@ -1,3 +1,15 @@
+# arimatools 0.4.1
+
+* The vignettes are now R Markdown instead of Quarto, with the same content.
+  Quarto vignettes failed to build on Windows: the R process started by
+  Quarto does not see the temporary library into which `R CMD build`
+  installs the package (r-lib/rcmdcheck#236). R Markdown vignettes are built
+  inside R and work on every platform, and no longer need the Quarto
+  command-line tool.
+* Suggests: 'rmarkdown' replaces 'quarto'; `VignetteBuilder: knitr`.
+* The `detect_outliers()` examples in `vignette("diagnostics")` run only when
+  'tsoutliers' is installed, tested directly in the chunk options.
+
 # arimatools 0.4.0
 
 * Three vignettes (Quarto), adapted from the ATSE Labs 08-10 and built on
