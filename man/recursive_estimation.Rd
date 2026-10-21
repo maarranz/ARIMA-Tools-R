@@ -16,7 +16,7 @@ recursive_estimation(
 }
 \arguments{
 \item{y}{A numeric vector or \code{ts} object. Leading and trailing missing
-values of a \code{ts} are dropped.}
+values are dropped; missing values inside the sample are an error.}
 
 \item{order}{Integer vector \code{c(p, d, q)}.}
 

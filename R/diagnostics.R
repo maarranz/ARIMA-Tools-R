@@ -274,7 +274,7 @@ plot_dynamic_effects <- function(fit, horizon = 20,
 #' exact ML is tried before recording the endpoint as failed.
 #'
 #' @param y A numeric vector or `ts` object. Leading and trailing missing
-#'   values of a `ts` are dropped.
+#'   values are dropped; missing values inside the sample are an error.
 #' @param order Integer vector `c(p, d, q)`.
 #' @param initial `NULL`, a fraction in (0, 1), or an integer number of
 #'   observations for the first window.
@@ -311,12 +311,24 @@ recursive_estimation <- function(y, order, initial = NULL, min_df = 20,
   min_df <- .check_count(min_df, "min_df", min = 1)
   .check_level(confidence)
 
+  if (!is.null(dim(y)) && NCOL(y) > 1) stop("`y` must be univariate.", call. = FALSE)
+  obs <- !is.na(as.numeric(y))
+  if (!any(obs)) stop("`y` has no observations.", call. = FALSE)
+  span <- range(which(obs))
+  if (any(!obs[span[1]:span[2]])) {
+    stop("`y` has missing values inside the sample (observation(s) ",
+         paste(utils::head(which(!obs[span[1]:span[2]]) + span[1] - 1L, 5),
+               collapse = ", "),
+         if (sum(!obs[span[1]:span[2]]) > 5) ", ..." else "", "). Recursive ",
+         "estimation needs a complete sequence of observations; only leading ",
+         "and trailing missing values are dropped.", call. = FALSE)
+  }
+  keep <- span[1]:span[2]
   if (stats::is.ts(y)) {
-    y <- stats::na.omit(y)
+    y <- stats::ts(as.numeric(y)[keep], start = stats::time(y)[span[1]],
+                   frequency = stats::frequency(y))
   } else {
-    if (!is.null(dim(y)) && NCOL(y) > 1) stop("`y` must be univariate.", call. = FALSE)
-    y <- as.numeric(y)
-    y <- y[!is.na(y)]
+    y <- as.numeric(y)[keep]
   }
   if (!all(is.finite(y))) stop("`y` must contain only finite values.", call. = FALSE)
   n <- length(y)

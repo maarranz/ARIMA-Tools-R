@@ -1,3 +1,28 @@
+# arimatools 0.3.4
+
+Fixes from the v0.3.3 audit.
+
+* Outlier regressors are recognised only by the exact names that
+  `outlier_regressors()` creates (type plus period or observation number, e.g.
+  `AO2020Q2`, `LS2008M09`, `TC1990`, `AO151`). Ordinary regressors whose names
+  start with AO, LS or TC (e.g. `LSE`, `TCU`) are no longer plotted as outlier
+  effects by `plot_outliers()`, and the forecasting functions give the correct
+  "needs future regressor values" message for them.
+* `outlier_regressors()`: `types` must have length 1 or one entry per date.
+  Other lengths (e.g. two types for four dates) are an error instead of being
+  recycled.
+* `forecast_error_variance()`, `dynamic_forecast()`, `plot_forecast()` and
+  `plot_fan_chart()` warn when the MA polynomial has a root on or very near
+  the unit circle (inverse-root modulus >= 0.99, typically after
+  overdifferencing). The psi-weight intervals then understate the uncertainty
+  relative to the Kalman filter. `plot_fan_chart()` warns once, not once per
+  band.
+* `recursive_estimation()` rejects series with missing values inside the
+  sample with a clear message. Previously a plain vector with interior gaps
+  was silently compressed, joining non-adjacent observations.
+* DESCRIPTION gains `URL` and `BugReports` (the GitHub repository).
+* API guide: `self-contained-math: true`.
+
 # arimatools 0.3.3
 
 * `compare_models()`'s `sample_id` is now a fingerprint of the complete series

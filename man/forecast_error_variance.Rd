@@ -24,8 +24,11 @@ differencing, to obtain psi_0, ..., psi_(steps-1), and returns
 Parameters are treated as fixed and past innovations as known, so
 parameter-estimation uncertainty is not included. The Kalman-filter
 variances behind \code{predict()} / \code{\link[forecast:reexports]{forecast::forecast()}} are exact in finite
-samples and can differ slightly (e.g. at the start of short samples or with
-missing values); for typical samples the two coincide to many decimals.
+samples. For a complete sample and an invertible MA part the two coincide
+to many decimals. When the MA polynomial has a root on or very near the
+unit circle (inverse-root modulus of at least 0.99, typically after
+overdifferencing), past innovations cannot be recovered and the psi-weight
+variances understate the uncertainty; a warning is then issued.
 
 The innovation variance is \code{fit$sigma2}. Note that \code{\link[forecast:Arima]{forecast::Arima()}}
 reports a degrees-of-freedom-adjusted variance, SSR / (n' - number of

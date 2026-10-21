@@ -19,6 +19,14 @@ Function names match the Python API. Tables follow R/broom conventions
 (\code{term}, \code{estimate}, \code{std.error}, \code{p.value}, ...). Figures are ggplot2
 objects; pass \code{interactive = TRUE} for a plotly widget.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/maarranz/ARIMA-Tools-R}
+  \item Report bugs at \url{https://github.com/maarranz/ARIMA-Tools-R/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Miguel A. Arranz \email{maarranz@eco.uc3m.es} (\href{https://orcid.org/0000-0002-5951-2284}{ORCID})
 

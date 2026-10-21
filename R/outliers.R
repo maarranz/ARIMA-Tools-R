@@ -12,7 +12,11 @@
 # Python package) without changing code that uses it.
 
 .outlier_types <- c("AO", "LS", "TC")
-.outlier_pattern <- "^(AO|LS|TC)"
+# Column names created by outlier_regressors(): type followed by a period
+# label (1990, 2020Q2, 2008M09) or an observation number (151). Only these
+# names are treated as outlier regressors, so that ordinary regressors whose
+# names happen to start with AO, LS or TC (e.g. LSE, TCU) are not.
+.outlier_pattern <- "^(AO|LS|TC)([0-9]{4}(Q[1-4]|M(0[1-9]|1[0-2]))|[0-9]+)$"
 
 # ---- Periods: parsing and labels ---------------------------------------------
 
@@ -147,8 +151,8 @@
 #'   strings like `"2008-09-01"` also work (the period containing the date).
 #'   Decimal time (`2020.25`) works for any `ts` if it matches an observation.
 #'   For other frequencies (weekly, daily), use `positions`.
-#' @param types Outlier types, `"AO"`, `"LS"` or `"TC"`, recycled to the
-#'   number of dates.
+#' @param types Outlier types, `"AO"`, `"LS"` or `"TC"`: either one type for
+#'   all dates or one type per date.
 #' @param delta Decay rate of temporary changes, in (0, 1).
 #' @param positions Alternative to `dates`: observation numbers.
 #' @return A matrix with one column per outlier: a `ts` matrix with the time
@@ -191,11 +195,11 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
   if (!all(types %in% .outlier_types)) {
     stop("`types` must be \"AO\", \"LS\" or \"TC\".", call. = FALSE)
   }
-  if (length(types) != length(idx)) {
-    if (length(idx) %% length(types) != 0) {
-      stop("`types` must have length 1 or the number of dates.", call. = FALSE)
-    }
-    types <- rep_len(types, length(idx))
+  if (length(types) == 1L) {
+    types <- rep(types, length(idx))
+  } else if (length(types) != length(idx)) {
+    stop("`types` must have length 1 or the number of dates (", length(idx),
+         "); got ", length(types), ".", call. = FALSE)
   }
   n <- length(y)
   labels <- .period_label(y, idx)
@@ -546,7 +550,9 @@ print.arimatools_outliers <- function(x, digits = 4, ...) {
 #' Works both for automatic detection and for outliers chosen by hand:
 #' `x` can be the output of [detect_outliers()] or any model fitted with
 #' regressors from [outlier_regressors()]. In the second case the effect is the
-#' regressors multiplied by their estimated coefficients. Several outliers on
+#' regressors multiplied by their estimated coefficients; only columns named
+#' exactly as [outlier_regressors()] names them (e.g. `AO2020Q2`, `LS151`)
+#' count as outliers, other regressors are ignored. Several outliers on
 #' the same date share one marker (a diamond), whose tooltip lists them all.
 #'
 #' Models with a Box-Cox transformation (`lambda`) are rejected, because their

@@ -9,8 +9,11 @@
 #' Parameters are treated as fixed and past innovations as known, so
 #' parameter-estimation uncertainty is not included. The Kalman-filter
 #' variances behind `predict()` / [forecast::forecast()] are exact in finite
-#' samples and can differ slightly (e.g. at the start of short samples or with
-#' missing values); for typical samples the two coincide to many decimals.
+#' samples. For a complete sample and an invertible MA part the two coincide
+#' to many decimals. When the MA polynomial has a root on or very near the
+#' unit circle (inverse-root modulus of at least 0.99, typically after
+#' overdifferencing), past innovations cannot be recovered and the psi-weight
+#' variances understate the uncertainty; a warning is then issued.
 #'
 #' The innovation variance is `fit$sigma2`. Note that [forecast::Arima()]
 #' reports a degrees-of-freedom-adjusted variance, SSR / (n' - number of
@@ -27,6 +30,12 @@
 #' @export
 forecast_error_variance <- function(fit, steps = 20) {
   .check_fit(fit)
+  out <- .fev(fit, steps)
+  .warn_ma_unit_root(fit)
+  out
+}
+
+.fev <- function(fit, steps) {
   steps <- .check_count(steps, "steps", min = 1)
   .reject_lambda(fit, "forecast_error_variance()")
   .check_complete_history(fit)
@@ -36,6 +45,31 @@ forecast_error_variance <- function(fit, steps = 20) {
          call. = FALSE)
   }
   sigma2 * cumsum(.psi_weights(fit, steps)^2)
+}
+
+# The psi-weight variances treat past innovations as known. With an MA root on
+# (or numerically at) the unit circle, the innovations cannot be recovered from
+# the observations and the Kalman-filter variances are larger: in simulations
+# with an estimated seasonal MA coefficient of -1 the psi-weight standard
+# errors were about 9% smaller. Warn rather than stop, since the point
+# forecasts are unaffected.
+.ma_unit_root_tol <- 0.01
+
+.warn_ma_unit_root <- function(fit) {
+  r <- .ma_roots(fit)
+  if (!length(r)) return(invisible(FALSE))
+  m <- max(Mod(1 / r))
+  if (m >= 1 - .ma_unit_root_tol) {
+    warning("The MA polynomial has a root on or very near the unit circle ",
+            "(largest inverse-root modulus ", sprintf("%.4f", m), "). The ",
+            "psi-weight forecast-error variances assume the past innovations are ",
+            "known, which fails for a (nearly) non-invertible MA part: the ",
+            "intervals understate the uncertainty, and forecast::forecast() gives ",
+            "wider Kalman-filter intervals. A common cause is overdifferencing.",
+            call. = FALSE)
+    return(invisible(TRUE))
+  }
+  invisible(FALSE)
 }
 
 #' Recursive (dynamic) forecasts with normal-theory intervals
@@ -50,6 +84,9 @@ forecast_error_variance <- function(fit, steps = 20) {
 #' Gaussian, conditional on the estimated parameters and the selected model;
 #' they do not include parameter or model-selection uncertainty.
 #'
+#' A warning is issued when the MA part is (nearly) non-invertible; see
+#' [forecast_error_variance()].
+#'
 #' Not supported (an error explains why): models with external regressors other
 #' than drift (including outlier regressors), models with a Box-Cox
 #' transformation (`lambda`), whose point forecasts and variances would be on
@@ -63,8 +100,16 @@ forecast_error_variance <- function(fit, steps = 20) {
 #' @export
 dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
   .check_fit(fit)
+  out <- .dynamic_forecast(fit, steps, level)
+  .warn_ma_unit_root(fit)
+  out
+}
+
+# dynamic_forecast() without the MA unit-root warning, so that plot_fan_chart()
+# warns once rather than once per band.
+.dynamic_forecast <- function(fit, steps, level) {
   .check_level(level, "level")
-  fev <- forecast_error_variance(fit, steps)
+  fev <- .fev(fit, steps)
   fc <- .point_forecast(fit, length(fev))
   se <- sqrt(fev)
   crit <- stats::qnorm(1 - (1 - level) / 2)
@@ -92,7 +137,7 @@ dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
 
 .point_forecast <- function(fit, steps) {
   xreg_names <- setdiff(colnames(fit$xreg), "drift")
-  if (length(xreg_names) && all(grepl("^(AO|LS|TC)", xreg_names))) {
+  if (length(xreg_names) && all(grepl(.outlier_pattern, xreg_names))) {
     stop("Forecasting models with outlier regressors (",
          paste(xreg_names, collapse = ", "), ") is not supported yet.",
          call. = FALSE)
@@ -204,7 +249,9 @@ plot_fan_chart <- function(fit, steps = 20,
   }
   if (anyDuplicated(levels)) stop("`levels` must not contain duplicates.", call. = FALSE)
   levels <- sort(levels, decreasing = TRUE)
-  tabs <- lapply(levels, function(l) dynamic_forecast(fit, steps = steps, level = l))
+  .check_fit(fit)
+  tabs <- lapply(levels, function(l) .dynamic_forecast(fit, steps = steps, level = l))
+  .warn_ma_unit_root(fit)
   ax <- .forecast_axis(fit, nrow(tabs[[1]]), history)
   t0 <- utils::tail(ax$t, 1); y0 <- utils::tail(ax$y, 1)
   bx <- c(t0, ax$future)

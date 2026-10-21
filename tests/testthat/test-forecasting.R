@@ -104,3 +104,24 @@ test_that("F7: series with missing values are rejected by the forecasting functi
   expect_error(dynamic_forecast(fm, 3), "missing values")
   expect_error(forecast_error_variance(fm, 3), "missing values")
 })
+
+test_that("v0.3.4: (nearly) non-invertible MA parts trigger one warning", {
+  set.seed(1)
+  # Overdifferenced random walk: the estimated seasonal MA coefficient is -1.
+  yo <- ts(cumsum(rnorm(120)), frequency = 12)
+  fo <- suppressWarnings(forecast::Arima(yo, order = c(0, 1, 1), seasonal = c(0, 1, 1)))
+  expect_gte(max(root_diagnostics(fo)$inverse_modulus[root_diagnostics(fo)$type == "MA"]),
+             0.99)
+  expect_warning(forecast_error_variance(fo, 12), "unit circle")
+  expect_warning(dynamic_forecast(fo, 12), "unit circle")
+  expect_warning(plot_forecast(fo, 12), "unit circle")
+  n_warn <- 0L
+  withCallingHandlers(plot_fan_chart(fo, 12),
+                      warning = function(w) {
+                        n_warn <<- n_warn + 1L
+                        invokeRestart("muffleWarning")
+                      })
+  expect_equal(n_warn, 1L)
+  # Invertible models: no warning.
+  for (fit in models) expect_no_warning(dynamic_forecast(fit, 5))
+})

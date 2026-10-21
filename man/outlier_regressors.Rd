@@ -22,8 +22,8 @@ strings like \code{"2008-09-01"} also work (the period containing the date).
 Decimal time (\code{2020.25}) works for any \code{ts} if it matches an observation.
 For other frequencies (weekly, daily), use \code{positions}.}
 
-\item{types}{Outlier types, \code{"AO"}, \code{"LS"} or \code{"TC"}, recycled to the
-number of dates.}
+\item{types}{Outlier types, \code{"AO"}, \code{"LS"} or \code{"TC"}: either one type for
+all dates or one type per date.}
 
 \item{delta}{Decay rate of temporary changes, in (0, 1).}
 

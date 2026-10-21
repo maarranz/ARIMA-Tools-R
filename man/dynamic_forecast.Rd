@@ -30,6 +30,9 @@ re-estimated or updated as new observations arrive. The intervals are
 Gaussian, conditional on the estimated parameters and the selected model;
 they do not include parameter or model-selection uncertainty.
 
+A warning is issued when the MA part is (nearly) non-invertible; see
+\code{\link[=forecast_error_variance]{forecast_error_variance()}}.
+
 Not supported (an error explains why): models with external regressors other
 than drift (including outlier regressors), models with a Box-Cox
 transformation (\code{lambda}), whose point forecasts and variances would be on

@@ -240,3 +240,39 @@ test_that("v0.3.1 verification A: a shifted linear 'drift' regressor is rejected
   f15 <- forecast::Arima(y13, order = c(0, 0, 0), include.drift = TRUE)
   expect_s3_class(suppressWarnings(detect_outliers(f15, cval = 100)), "arimatools_outliers")
 })
+
+test_that("v0.3.4: only names created by outlier_regressors() count as outliers", {
+  set.seed(341)
+  z <- ts(as.numeric(arima.sim(list(ar = 0.5), n = 120)), start = c(1990, 1),
+          frequency = 4)
+  lse <- cbind(LSE = rnorm(120))
+  f1 <- forecast::Arima(z, order = c(1, 0, 0), xreg = lse)
+  expect_error(plot_outliers(f1), "no outlier regressors")
+  X <- outlier_regressors(z, dates = "2000Q1", types = "AO")
+  xr <- cbind(AO2000Q1 = as.numeric(X), LSE = lse[, 1])
+  f2 <- forecast::Arima(z, order = c(1, 0, 0), xreg = xr)
+  p <- plot_outliers(f2)
+  expect_s3_class(p, "patchwork")
+  # The effect uses the AO coefficient only, not the LSE one.
+  eff <- ggplot2::layer_data(p[[2]], 2)$y
+  expect_equal(eff, as.numeric(X) * unname(f2$coef["AO2000Q1"]))
+  tcu <- forecast::Arima(z, order = c(1, 0, 0), xreg = cbind(TCU = rnorm(120)))
+  expect_error(dynamic_forecast(tcu, 3), "future regressor values")
+  expect_error(dynamic_forecast(forecast::Arima(z, order = c(1, 0, 0), xreg = X), 3),
+               "outlier regressors")
+  num <- outlier_regressors(as.numeric(z), positions = 51, types = "AO")
+  expect_equal(colnames(num), "AO51")
+  expect_error(dynamic_forecast(forecast::Arima(as.numeric(z), order = c(1, 0, 0),
+                                                xreg = num), 3), "outlier regressors")
+})
+
+test_that("v0.3.4: types must have length 1 or one per date", {
+  z <- ts(rnorm(60), start = c(1990, 1), frequency = 4)
+  d4 <- c("1995Q1", "1996Q1", "1997Q1", "1998Q1")
+  expect_error(outlier_regressors(z, dates = d4, types = c("AO", "LS")),
+               "length 1 or the number of dates")
+  expect_equal(colnames(outlier_regressors(z, dates = d4, types = "LS")),
+               paste0("LS", c("1995Q1", "1996Q1", "1997Q1", "1998Q1")))
+  expect_equal(colnames(outlier_regressors(z, dates = d4[1:2], types = c("AO", "TC"))),
+               c("AO1995Q1", "TC1996Q1"))
+})

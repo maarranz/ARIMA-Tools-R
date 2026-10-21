@@ -145,3 +145,21 @@ test_that("F10: fractional or invalid Ljung-Box lags are rejected", {
   expect_error(ljung_box_test(fit, c(5, NA)), "positive integers")
   expect_error(ljung_box_test(fit, "10"), "positive integers")
 })
+
+test_that("v0.3.4: recursive estimation rejects interior gaps, drops edge ones", {
+  set.seed(342)
+  z <- as.numeric(arima.sim(list(ar = 0.5), n = 150))
+  zg <- z; zg[60] <- NA
+  expect_error(recursive_estimation(zg, c(1, 0, 0)), "inside the sample")
+  expect_error(recursive_estimation(ts(zg, start = c(1990, 1), frequency = 4),
+                                    c(1, 0, 0)), "inside the sample")
+  ze <- c(NA, NA, z, NA)
+  r1 <- recursive_estimation(ze, c(1, 0, 0), initial = 140)
+  r2 <- recursive_estimation(z, c(1, 0, 0), initial = 140)
+  expect_equal(r1$estimate, r2$estimate)
+  zt <- ts(c(NA, z), start = c(1989, 4), frequency = 4)
+  r3 <- recursive_estimation(zt, c(1, 0, 0), initial = 140)
+  expect_equal(r3$estimate, r2$estimate)
+  expect_equal(r3$endpoint[1], as.Date("2024-10-01"))
+  expect_error(recursive_estimation(rep(NA_real_, 10), c(1, 0, 0)), "no observations")
+})

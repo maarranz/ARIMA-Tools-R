@@ -26,7 +26,9 @@ outlier effect over time.
 Works both for automatic detection and for outliers chosen by hand:
 \code{x} can be the output of \code{\link[=detect_outliers]{detect_outliers()}} or any model fitted with
 regressors from \code{\link[=outlier_regressors]{outlier_regressors()}}. In the second case the effect is the
-regressors multiplied by their estimated coefficients. Several outliers on
+regressors multiplied by their estimated coefficients; only columns named
+exactly as \code{\link[=outlier_regressors]{outlier_regressors()}} names them (e.g. \code{AO2020Q2}, \code{LS151})
+count as outliers, other regressors are ignored. Several outliers on
 the same date share one marker (a diamond), whose tooltip lists them all.
 
 Models with a Box-Cox transformation (\code{lambda}) are rejected, because their
