@@ -1,0 +1,252 @@
+---
+title: "Model building: estimation and selection"
+author: "Miguel A. Arranz"
+vignette: >
+  %\VignetteIndexEntry{Model building: estimation and selection}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+format:
+  html:
+    toc: true
+    embed-resources: true
+    self-contained-math: true
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+    fig-width: 7
+    fig-height: 4.5
+---
+
+This vignette shows how arimatools supports the estimation and selection of
+ARMA models: coefficient tables, residual correlations for
+Specific-to-General model building, joint tests and root checks for
+General-to-Specific reduction, transparent information-criterion searches,
+and AutoARIMA as a benchmark. The econometric theory is in the ATSE course
+material; here the emphasis is on the functions.
+
+```{r}
+#| message: false
+library(forecast)
+library(arimatools)
+```
+
+Models are estimated with `forecast::Arima()`. Every arimatools function
+that takes a model accepts its result, as well as `forecast::auto.arima()`
+and `stats::arima()` fits.
+
+## A known data-generating process
+
+To see what estimation and selection can and cannot recover, we simulate one
+realization of $T = 300$ observations from a known ARMA(1,1),
+
+$$
+Y_t = 0.7\,Y_{t-1} + u_t + 0.4\,u_{t-1}, \qquad u_t \overset{iid}{\sim} N(0, 1),
+$$
+
+discarding 200 burn-in observations.
+
+```{r}
+set.seed(12345)
+y <- arima.sim(model = list(ar = 0.7, ma = 0.4), n = 300, n.start = 200)
+```
+
+The process has zero mean, so the models below are estimated with
+`include.mean = FALSE`.
+
+```{r}
+fit_ar1    <- Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+fit_ma1    <- Arima(y, order = c(0, 0, 1), include.mean = FALSE)
+fit_arma11 <- Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+```
+
+## Coefficient tables
+
+`coefficient_diagnostics()` reports estimates, standard errors,
+$z$-statistics, two-sided asymptotic p-values and normal confidence
+intervals for the freely estimated coefficients. Columns follow broom
+conventions. No significance stars are added: in dynamic models the
+relevance of a coefficient should not be judged mechanically by a p-value
+threshold.
+
+```{r}
+coefficient_diagnostics(fit_arma11)
+coefficient_diagnostics(fit_ar1, confidence = 0.90)
+```
+
+## Specific-to-General: residual correlations
+
+A Specific-to-General strategy starts from a small model and enlarges it when
+the residuals show dynamics the model has not captured.
+`residual_correlations()` returns the residual ACF and PACF with the
+individual white-noise bounds $\pm z/\sqrt{T}$ as a table.
+
+```{r}
+head(residual_correlations(fit_ar1, lags = 20), 6)
+```
+
+The same information as a figure, together with Ljung-Box p-values, is
+produced by `plot_residual_diagnostics()` (see the vignette on diagnostics).
+Here we use `forecast::ggtsdisplay()` on the residuals:
+
+```{r}
+ggtsdisplay(residuals(fit_ar1), lag.max = 20,
+            main = "Residuals of the AR(1)")
+```
+
+## General-to-Specific: joint tests and root checks
+
+A General-to-Specific (GETS) reduction for ARMA models starts from an
+ARMA$(k,k)$ and tests the highest-order pair jointly,
+$H_0: \phi_k = \theta_k = 0$, with `joint_significance()`, a Wald test.
+
+```{r}
+fit_arma44 <- Arima(y, order = c(4, 0, 4), include.mean = FALSE,
+                    optim.control = list(maxit = 1000))
+joint_significance(fit_arma44, c("ar4", "ma4"))
+```
+
+Before acting on the test, check the roots. `root_summary()` reports
+causality, invertibility and the number of common or near-common pairs of
+AR and MA inverse roots, which signal cancellation and overparameterization.
+
+```{r}
+root_summary(fit_arma44)
+```
+
+When near-common roots are present, the top-lag coefficients are poorly
+identified and the usual Wald distribution is unreliable. That is evidence
+that the model is too large, whatever the test says. The loop below carries
+out the diagonal reduction
+ARMA(4,4) $\to$ ARMA(3,3) $\to$ ARMA(2,2) $\to$ ARMA(1,1), recording the
+joint test, convergence and the number of near-common root pairs at each
+step.
+
+```{r}
+gets <- lapply(4:1, function(k) {
+  fit_k <- Arima(y, order = c(k, 0, k), include.mean = FALSE,
+                 optim.control = list(maxit = 1000))
+  test <- joint_significance(fit_k, paste0(c("ar", "ma"), k))
+  data.frame(
+    model = sprintf("ARMA(%d,%d)", k, k),
+    wald = round(test[["Wald statistic"]], 3),
+    p.value = round(test[["P-value"]], 4),
+    converged = fit_k$code == 0,
+    near_common = root_summary(fit_k)[["Near-common root pairs"]]
+  )
+})
+do.call(rbind, gets)
+```
+
+Summaries such as `joint_significance()` and `root_summary()` return named
+lists that print as two columns; individual entries are extracted with `[[`,
+as above, and `as.data.frame()` turns them into tables.
+
+## Information-criterion order search
+
+`order_search()` estimates every ARIMA$(p,d,q)$ in a grid and reports the
+log likelihood and all four information criteria,
+
+$$
+\text{AIC} = -2\log L + 2k,\quad
+\text{AICc} = \text{AIC} + \frac{2k(k+1)}{n-k-1},\quad
+\text{BIC} = -2\log L + k\log n,\quad
+\text{HQIC} = -2\log L + 2k\log\log n,
+$$
+
+where $k$ counts the free coefficients plus the innovation variance. Every
+model is reported, including any that failed or did not converge.
+
+```{r}
+search <- order_search(y, p_max = 3, q_max = 3, criterion = "BIC",
+                       include.constant = FALSE)
+head(search[, c("model", "k", "loglik", "AIC", "BIC", "converged", "status")])
+```
+
+`order_search()` estimates and reports; only `select_model()` chooses.
+
+```{r}
+select_model(search, criterion = "BIC")
+select_model(search, criterion = "AIC")
+```
+
+The minimum-criterion model is the one preferred by that criterion within
+the candidate set. It is not automatically adequate, and in a finite sample
+it need not be the DGP.
+
+### Choose $d$ first
+
+Information criteria are comparable only among models with the same order
+of differencing, because differencing changes the effective sample. A grid
+over several $d$ is allowed for inspection, but `select_model()` then needs
+to be told which $d$ to select within:
+
+```{r}
+#| error: true
+grid_d <- order_search(y, p_max = 1, q_max = 1, d_min = 0, d_max = 1)
+select_model(grid_d)
+select_model(grid_d, d = 0)
+```
+
+## AutoARIMA as a benchmark
+
+`auto_arima()` is a thin wrapper around `forecast::auto.arima()` with the
+course defaults: nonseasonal models, BIC, and exact likelihoods during the
+search. Here $d$ is fixed at zero, as in the grid above.
+
+```{r}
+auto <- auto_arima(y, criterion = "BIC", d = 0, max_p = 4, max_q = 4)
+auto_arima_summary(auto)
+```
+
+The result is an ordinary fitted `Arima` object, so every other arimatools
+function accepts it directly, e.g. `coefficient_diagnostics(auto)`.
+
+## Comparing estimated models
+
+`compare_models()` collects likelihoods and criteria for fitted models, and
+records each model's estimation sample.
+
+```{r}
+cmp <- compare_models(fit_ar1, fit_ma1, fit_arma11,
+                      names = c("AR(1)", "MA(1)", "ARMA(1,1)"))
+cmp[, c("model", "k", "loglik", "AIC", "BIC", "start", "end")]
+select_model(cmp, "BIC")
+```
+
+`select_model()` refuses to compare models fitted to different observations,
+such as different sample windows or a series and its logarithm:
+
+```{r}
+#| error: true
+z <- ts(50 + cumsum(rnorm(120, 0.3)), start = c(1990, 1), frequency = 4)
+select_model(compare_models(level = Arima(z, c(1, 1, 0)),
+                            log = Arima(log(z), c(1, 1, 0))))
+```
+
+## How often does a strategy find the DGP?
+
+Whether a strategy recovered ARMA(1,1) in one realization is partly luck.
+The functions above can be combined in a Monte Carlo experiment that counts
+how often each criterion selects the true model. The code is shown but not
+run here, since it takes a few minutes.
+
+```{r}
+#| eval: false
+pick <- function(T_obs) {
+  y <- arima.sim(model = list(ar = 0.7, ma = 0.4), n = T_obs, n.start = 200)
+  grid <- suppressWarnings(order_search(y, p_max = 3, q_max = 3,
+                                        include.constant = FALSE))
+  sapply(c("BIC", "AIC"), function(cr) {
+    best <- select_model(grid, criterion = cr)
+    sprintf("ARMA(%d,%d)", best$p, best$q)
+  })
+}
+set.seed(2026)
+picks <- t(replicate(300, pick(100)))
+colMeans(picks == "ARMA(1,1)")   # share of realizations selecting the DGP
+```
+
+Selecting a candidate is not the end of model building: the selected model
+must still be diagnosed. That is the subject of
+`vignette("diagnostics", package = "arimatools")`.

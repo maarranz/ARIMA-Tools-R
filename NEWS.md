@@ -1,3 +1,20 @@
+# arimatools 0.4.0
+
+* Three vignettes (Quarto), adapted from the ATSE Labs 08-10 and built on
+  simulated data with a known data-generating process:
+  - `vignette("model-building")`: coefficient tables, Specific-to-General and
+    General-to-Specific model building, order searches, AutoARIMA, model
+    comparison.
+  - `vignette("diagnostics")`: the diagnostic battery, deterministic terms of
+    integrated models, recursive parameter stability, intervention models
+    (`outlier_regressors()`, `detect_outliers()`, `plot_outliers()`).
+  - `vignette("forecasting")`: dynamic forecasts, psi-weights,
+    forecast-error variances, fan charts, integrated models, and forecasting
+    models with regressors and interventions.
+* Building the vignettes needs the Quarto command-line tool (>= 1.4) and the
+  'quarto' R package. Suggests gains 'knitr' and 'quarto'.
+* GitHub Actions run `R CMD check` on Linux, macOS and Windows for every push.
+
 # arimatools 0.3.4
 
 Fixes from the v0.3.3 audit.

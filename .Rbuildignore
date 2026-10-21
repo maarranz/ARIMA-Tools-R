@@ -5,3 +5,6 @@
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^\.github$
+^vignettes/.*\.html$
+^vignettes/.*_files$
+^vignettes/\.quarto$

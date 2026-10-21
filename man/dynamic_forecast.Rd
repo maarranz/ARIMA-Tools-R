@@ -19,7 +19,7 @@ A data frame with columns \code{horizon}, \code{forecast}, \code{fev}, \code{se}
 \code{lower} and \code{upper}.
 }
 \description{
-Point forecasts from \code{\link[forecast:reexports]{forecast::forecast()}} (which handles means and drift
+Point forecasts from \code{\link[forecast:forecast]{forecast::forecast()}} (which handles means and drift
 automatically); uncertainty from \code{\link[=forecast_error_variance]{forecast_error_variance()}}, not from the
 Kalman filter.
 }

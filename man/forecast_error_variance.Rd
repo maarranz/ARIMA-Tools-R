@@ -23,7 +23,7 @@ differencing, to obtain psi_0, ..., psi_(steps-1), and returns
 \details{
 Parameters are treated as fixed and past innovations as known, so
 parameter-estimation uncertainty is not included. The Kalman-filter
-variances behind \code{predict()} / \code{\link[forecast:reexports]{forecast::forecast()}} are exact in finite
+variances behind \code{predict()} / \code{\link[forecast:forecast]{forecast::forecast()}} are exact in finite
 samples. For a complete sample and an invertible MA part the two coincide
 to many decimals. When the MA polynomial has a root on or very near the
 unit circle (inverse-root modulus of at least 0.99, typically after

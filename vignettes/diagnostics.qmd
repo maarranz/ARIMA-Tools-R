@@ -1,0 +1,282 @@
+---
+title: "Diagnostics, integration and interventions"
+author: "Miguel A. Arranz"
+vignette: >
+  %\VignetteIndexEntry{Diagnostics, integration and interventions}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+format:
+  html:
+    toc: true
+    embed-resources: true
+    self-contained-math: true
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+    fig-width: 7
+    fig-height: 4.5
+---
+
+A selected model still has to be checked. This vignette covers the
+diagnostic functions of arimatools, the deterministic terms of integrated
+models, recursive parameter stability, and intervention (outlier) models:
+regressors for dates you choose, automatic detection, and effect plots.
+
+```{r}
+#| message: false
+library(forecast)
+library(arimatools)
+has_tso <- requireNamespace("tsoutliers", quietly = TRUE)
+```
+
+## The diagnostic battery
+
+We use one realization of the ARMA(1,1)
+$Y_t = 0.7Y_{t-1} + u_t + 0.4u_{t-1}$ and a misspecified AR(1).
+
+```{r}
+set.seed(12345)
+y <- arima.sim(model = list(ar = 0.7, ma = 0.4), n = 300, n.start = 200)
+fit_ar1    <- Arima(y, order = c(1, 0, 0), include.mean = FALSE)
+fit_arma11 <- Arima(y, order = c(1, 0, 1), include.mean = FALSE)
+```
+
+No single diagnostic answers every question. The table below maps each
+question to a function.
+
+| Question | Function |
+|---|---|
+| Are the coefficients precisely estimated? | `coefficient_diagnostics()` |
+| Are the residuals serially uncorrelated? | `plot_residual_diagnostics()`, `ljung_box_test()`, `residual_correlations()` |
+| Are the residuals approximately normal? | `jarque_bera_test()` |
+| Is the AR part causal and the MA part invertible? | `root_summary()`, `root_diagnostics()`, `is_causal()`, `is_invertible()` |
+| Are there (near-)common AR and MA roots? | `common_roots()`, `plot_inverse_roots()` |
+| Are the parameter estimates highly correlated? | `parameter_correlation()` |
+| Are the parameters stable through the sample? | `recursive_estimation()`, `plot_parameter_stability()` |
+
+### Residual correlation
+
+`plot_residual_diagnostics()` stacks the residuals, their ACF and PACF with
+white-noise bounds, and the Ljung-Box p-values by lag with a 5% reference
+line.
+
+```{r}
+#| fig-height: 9
+plot_residual_diagnostics(fit_arma11, lags = 20,
+                          title = "Residual Diagnostics: ARMA(1,1)")
+```
+
+`ljung_box_test()` gives the statistics at chosen lags. Degrees of freedom
+are corrected for the estimated ARMA coefficients, $h - (p + q)$, so only
+lags larger than $p + q$ are accepted.
+
+```{r}
+#| error: true
+ljung_box_test(fit_arma11, lags = c(8, 12, 20))
+ljung_box_test(fit_ar1, lags = c(8, 12, 20))
+ljung_box_test(fit_arma11, lags = 2)
+```
+
+The Ljung-Box test is a portmanteau test with low power against particular
+alternatives: a non-rejection is not proof of white noise. Look at the
+whole sequence of p-values and at the correlograms.
+
+### Normality
+
+```{r}
+jarque_bera_test(fit_arma11)
+```
+
+### Roots, cancellation and parameter correlation
+
+```{r}
+root_summary(fit_arma11)
+root_diagnostics(fit_arma11)
+parameter_correlation(fit_arma11)
+```
+
+An overparameterized model shows the problem directly. Fitted to the same
+ARMA(1,1) data, an ARMA(4,4) has AR and MA inverse roots that nearly cancel
+in pairs (distance below `tol = 0.05`). They are marked with a cross in the
+inverse-root plot.
+
+```{r}
+#| fig-height: 5
+fit_arma44 <- Arima(y, order = c(4, 0, 4), include.mean = FALSE,
+                    optim.control = list(maxit = 1000))
+common_roots(fit_arma44)
+plot_inverse_roots(fit_arma44, title = "Inverse Roots: ARMA(4,4)")
+```
+
+The model-building vignette shows how these pairs mislead the top-lag test
+in a General-to-Specific reduction.
+
+## Integration and deterministic terms
+
+The meaning of a constant depends on where differencing enters. With $d=1$,
+$\Delta y_t = c + \varepsilon_t$ implies a linear trend in the level:
+`forecast::Arima()` calls this constant *drift* and estimates it with
+`include.drift = TRUE`. With $d = 2$, `forecast::Arima()` does not allow a
+constant at all.
+
+When $d$ is not fixed, `auto_arima()` chooses it before the ARMA search, by
+repeated KPSS tests (`forecast::ndiffs()`); information criteria are then
+used only among models with that $d$.
+
+```{r}
+set.seed(202609)
+y_i1 <- ts(cumsum(0.08 + rnorm(250)))
+auto_i1 <- auto_arima(y_i1, criterion = "BIC", max_p = 4, max_q = 4)
+auto_arima_summary(auto_i1)
+```
+
+`auto_arima_summary()` spells out the deterministic component: a mean for
+$d = 0$, a drift (a linear trend in the level) for $d = 1$. The order of
+integration is itself an estimate: `ndiffs(y, test = "adf")` or
+`test = "pp"` can disagree with the default KPSS choice.
+
+## Parameter stability
+
+An ARIMA specification assumes constant parameters. We simulate an AR(1)
+whose coefficient changes from 0.35 to 0.85 halfway through the sample.
+
+```{r}
+set.seed(901)
+n <- 320; tb <- 160
+e <- rnorm(n); y_break <- numeric(n)
+for (t in 2:n) y_break[t] <- (if (t <= tb) 0.35 else 0.85) * y_break[t - 1] + e[t]
+```
+
+`recursive_estimation()` re-estimates the model on expanding windows
+$1{:}m, 1{:}(m+1), \dots, 1{:}n$ and returns a long table with estimates,
+standard errors and confidence intervals for each coefficient (and the
+innovation variance) at every endpoint.
+
+```{r}
+rec <- recursive_estimation(y_break, order = c(1, 0, 0), initial = 80,
+                            include.constant = FALSE)
+head(rec)
+```
+
+`plot_parameter_stability()` plots the recursive estimates with their
+confidence bands, the full-sample estimate as a dashed line, and an
+optional vertical reference line at a known or hypothesized break.
+
+```{r}
+plot_parameter_stability(rec, breakpoint = tb)
+```
+
+The break line is a visual reference, not a test. For formal stability tests
+and break dating (CUSUM, sup-F, Bai-Perron) on the AR regression, see the
+'strucchange' package.
+
+## Interventions: regression with ARIMA errors
+
+With `xreg`, `forecast::Arima()` estimates a regression with ARIMA errors,
+
+$$
+y_t = X_t\beta + u_t, \qquad \Phi(L)(1 - L)^d u_t = \Theta(L)\varepsilon_t .
+$$
+
+The differencing belongs to the error process. A pulse in $X_t$ is therefore
+a one-period additive outlier in the observed $y_t$ for every $d$. It is not
+an innovation pulse in the differenced equation, which would become a step
+($d = 1$) or a ramp ($d = 2$) in the level. The regressor must match the
+intervention you mean.
+
+`outlier_regressors()` builds the three standard intervention regressors
+for an outlier at observation $t_0$:
+
+| Type | Regressor | Effect on the observed series |
+|---|---|---|
+| `"AO"`, additive outlier | 1 at $t_0$, 0 elsewhere | one-period pulse |
+| `"LS"`, level shift | 1 from $t_0$ onwards | permanent step |
+| `"TC"`, temporary change | $\delta^{t - t_0}$ from $t_0$ onwards | pulse decaying at rate $\delta$ |
+
+Dates are checked against the frequency of the series; columns are named by
+type and period.
+
+```{r}
+yq <- ts(rnorm(100), start = c(2000, 1), frequency = 4)   # 2000Q1-2024Q4
+X <- outlier_regressors(yq, dates = c("2008Q4", "2020Q2", "2020Q3"),
+                        types = c("LS", "AO", "TC"), delta = 0.7)
+colnames(X)
+attr(X, "outliers")
+```
+
+Series without calendar time use `positions` (observation numbers) instead
+of `dates`.
+
+### An additive outlier
+
+We contaminate one observation of an AR(1) with an additive outlier of size
+$\omega = 8$ and estimate the intervention jointly with the error model.
+
+```{r}
+set.seed(440)
+n_ao <- 260; t0 <- 151
+u <- as.numeric(arima.sim(list(ar = 0.65), n = n_ao))
+y_ao <- u; y_ao[t0] <- y_ao[t0] + 8
+
+X_ao <- outlier_regressors(y_ao, positions = t0, types = "AO")
+fit_ao <- Arima(y_ao, order = c(1, 0, 0), xreg = X_ao, include.mean = FALSE)
+coefficient_diagnostics(fit_ao)
+```
+
+The observation is neither deleted nor replaced: its exceptional effect is
+estimated, with a standard error. Compare the AR coefficient when the
+outlier is ignored:
+
+```{r}
+coef(Arima(y_ao, order = c(1, 0, 0), include.mean = FALSE))["ar1"]
+```
+
+`plot_outliers()` accepts any model whose regressors were built by
+`outlier_regressors()`. It shows the observed and outlier-adjusted series,
+with outlier dates marked by type, and the combined outlier effect.
+
+```{r}
+#| fig-height: 6
+plot_outliers(fit_ao, title = "Additive outlier: estimated effect")
+```
+
+### Automatic detection
+
+`detect_outliers()` applies the iterative procedure of Chen and Liu (1993),
+as implemented in `tsoutliers::tso()`, to a nonseasonal ARIMA model, and
+re-estimates the final model with regressors from `outlier_regressors()`.
+The model can be given as a fitted model, as a fixed order, or left to
+AutoARIMA. It requires the 'tsoutliers' package.
+
+```{r}
+#| eval: !expr has_tso
+found <- detect_outliers(y_ao, order = c(1, 0, 0), include.constant = FALSE)
+found
+```
+
+```{r}
+#| eval: !expr has_tso
+#| fig-height: 6
+plot_outliers(found, title = "Detected outlier effects")
+```
+
+The result also contains the final model (`found$fit`), the regressors, the
+combined effect and the adjusted series. Supported models are univariate
+and nonseasonal, with an optional mean or drift; models with other
+regressors or a Box-Cox transformation are rejected.
+
+A detected outlier is a candidate, not an explanation. The reported standard
+errors treat the selected dates and types as known and ignore the search
+that found them. With many candidate dates, some observations will be
+flagged by chance. Detection finds candidates to be judged with economic
+knowledge.
+
+### Interactive figures
+
+Every plotting function accepts `interactive = TRUE` and then returns a
+'plotly' widget with tooltips, e.g.
+`plot_outliers(fit_ao, interactive = TRUE)`.
+
+Forecasting from these models is covered in
+`vignette("forecasting", package = "arimatools")`.

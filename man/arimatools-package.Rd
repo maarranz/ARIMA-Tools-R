@@ -30,5 +30,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Miguel A. Arranz \email{maarranz@eco.uc3m.es} (\href{https://orcid.org/0000-0002-5951-2284}{ORCID})
 
+Authors:
+\itemize{
+  \item Miguel A. Arranz \email{maarranz@eco.uc3m.es} (\href{https://orcid.org/0000-0002-5951-2284}{ORCID})
+}
+
 }
 \keyword{internal}

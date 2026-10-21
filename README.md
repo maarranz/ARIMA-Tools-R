@@ -10,6 +10,13 @@ remotes::install_github("maarranz/ARIMA-Tools-R")
 library(arimatools)
 ```
 
+To also install the vignettes (worked examples), which requires the [Quarto](https://quarto.org) command-line tool:
+
+```r
+remotes::install_github("maarranz/ARIMA-Tools-R", dependencies = TRUE, build_vignettes = TRUE)
+browseVignettes("arimatools")
+```
+
 Requires R ≥ 4.1. Imports `digest`, `forecast`, `ggplot2`, `patchwork` and `zoo`; `plotly` is optional (`interactive = TRUE`), and `tsoutliers` is needed only for `detect_outliers()`.
 
 ## Quick start
@@ -38,6 +45,8 @@ The same 26 functions as the Python package, with the same names, plus three out
 - **Model comparison and selection:** `compare_models`, `order_search`, `select_model`, `auto_arima`, `auto_arima_summary`. `order_search` and `compare_models` estimate and report; only `select_model` chooses, and only among comparable models (same d, same sample, a genuine likelihood).
 - **Forecasting:** `forecast_error_variance`, `dynamic_forecast`, `plot_forecast`, `plot_fan_chart` (default fan coverages `c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99)`).
 - **Outliers (AO, LS, TC; nonseasonal models):** `outlier_regressors` (dummies for dates you choose, e.g. `"2020Q2"`), `detect_outliers` (Chen–Liu procedure via `tsoutliers::tso()`, for a fitted model, a fixed order or an auto.arima choice), `plot_outliers` (observed vs adjusted series and the combined outlier effect, for detected or hand-picked outliers). Models with explanatory variables or a Box–Cox transformation are rejected; warnings and non-convergence are reported.
+
+**Vignettes:** `vignette("model-building", package = "arimatools")` (estimation and selection), `vignette("diagnostics", package = "arimatools")` (diagnostics, integration, interventions) and `vignette("forecasting", package = "arimatools")` (dynamic forecasting).
 
 [API documentation — rendered HTML](docs/index.html) · [Quarto source](docs/arimatools_Documentation.qmd) · in R: `?recursive_estimation`, etc.
 

@@ -1,0 +1,240 @@
+---
+title: "Dynamic forecasting"
+author: "Miguel A. Arranz"
+vignette: >
+  %\VignetteIndexEntry{Dynamic forecasting}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+format:
+  html:
+    toc: true
+    embed-resources: true
+    self-contained-math: true
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+    fig-width: 7
+    fig-height: 4.5
+---
+
+This vignette covers the forecasting functions of arimatools. Point forecasts
+come from `forecast::forecast()`. Forecast uncertainty is built from the
+$\psi$-weights of the fitted model, so that the shape of the forecast and
+the growth of its uncertainty can be traced back to the model:
+
+- `dynamic_forecast()` returns forecasts, forecast-error variances and intervals as a table;
+- `forecast_error_variance()` and `dynamic_effects()` expose the $\psi$-weights behind them;
+- `plot_forecast()` and `plot_fan_chart()` draw them.
+
+```{r}
+#| message: false
+library(forecast)
+library(arimatools)
+library(ggplot2)
+```
+
+## Dynamic forecasts
+
+At the forecast origin $T$, future innovations have conditional expectation
+zero and future observations are replaced by their forecasts. For an AR(1),
+
+$$
+\hat y_{T+h|T} = \hat\phi^h y_T .
+$$
+
+```{r}
+set.seed(1010)
+y_ar1 <- arima.sim(list(ar = 0.75), n = 250, n.start = 200)
+fit_ar1 <- Arima(y_ar1, order = c(1, 0, 0), include.mean = FALSE)
+
+fc <- dynamic_forecast(fit_ar1, steps = 6, level = 0.95)
+fc
+all.equal(fc$forecast, coef(fit_ar1)[["ar1"]]^(1:6) * as.numeric(tail(y_ar1, 1)))
+```
+
+These are single-origin forecasts: every horizon is made from the end of the
+sample, and the model is not re-estimated as new observations arrive.
+
+```{r}
+plot_forecast(fit_ar1, steps = 12, history = 40)
+```
+
+## The $\psi$-weights explain the forecast
+
+Writing the model as an MA($\infty$), $y_t = \sum_{j \ge 0}\psi_j\varepsilon_{t-j}$,
+the known innovations affect $\hat y_{T+h|T}$ only through
+$\psi_h, \psi_{h+1}, \dots$: the forecast dies out as fast as the weights do.
+`dynamic_effects()` returns the weights and their cumulative sum.
+
+```{r}
+set.seed(22)
+fit_ma2 <- Arima(arima.sim(list(ma = c(0.70, 0.35)), n = 250),
+                 order = c(0, 0, 2), include.mean = FALSE)
+set.seed(33)
+fit_arma11 <- Arima(arima.sim(list(ar = 0.70, ma = 0.45), n = 250),
+                    order = c(1, 0, 1), include.mean = FALSE)
+
+dynamic_effects(fit_ma2, horizon = 5)
+```
+
+```{r}
+#| fig-height: 6
+plot_dynamic_effects(fit_arma11, horizon = 12, title = "ARMA(1,1): psi-weights")
+```
+
+For integrated models the weights include the differencing polynomial, so
+they are responses of the level and need not decay.
+
+## Forecast uncertainty
+
+The forecast-error variance at horizon $h$ is
+
+$$
+\operatorname{Var}\left(y_{T+h} - \hat y_{T+h|T}\right) = \sigma^2 \sum_{j=0}^{h-1} \psi_j^2 .
+$$
+
+For a stationary model it converges to the unconditional variance of $y_t$.
+
+```{r}
+fev <- forecast_error_variance(fit_arma11, steps = 40)
+long_run <- fit_arma11$sigma2 * sum(dynamic_effects(fit_arma11, 2000)$effect^2)
+c(h1 = fev[1], h40 = fev[40], unconditional = long_run)
+```
+
+A fan chart displays several central prediction intervals at once.
+
+```{r}
+plot_fan_chart(fit_arma11, steps = 25, levels = c(0.50, 0.80, 0.95), history = 60)
+```
+
+### Comparison with the Kalman filter
+
+`forecast::forecast()` computes the same intervals with the Kalman filter.
+For a complete sample and an invertible MA part, the two coincide:
+
+```{r}
+kf <- forecast(fit_arma11, h = 25, level = 95)
+max(abs(dynamic_forecast(fit_arma11, 25)$upper - kf$upper[, 1]))
+```
+
+Neither includes parameter or model-selection uncertainty: both treat the
+estimated model as known.
+
+The $\psi$-weight variances assume that past innovations are known. That
+fails when the MA polynomial has a root on the unit circle, typically after
+overdifferencing. arimatools then warns, because its intervals would be
+narrower than the Kalman ones:
+
+```{r}
+set.seed(1)
+y_rw <- ts(cumsum(rnorm(120)), frequency = 12)
+fit_over <- suppressWarnings(Arima(y_rw, order = c(0, 1, 1), seasonal = c(0, 1, 1)))
+fev_over <- forecast_error_variance(fit_over, 12)
+```
+
+## Integration changes the forecast
+
+With one unit root, shocks are permanent: the random-walk forecast is
+$\hat y_{T+h|T} = y_T$. A constant in the differenced equation,
+$\Delta y_t = c + \varepsilon_t$, becomes a linear drift in the level
+forecast, $\hat y_{T+h|T} = y_T + hc$.
+
+```{r}
+set.seed(606)
+y_i1 <- ts(cumsum(0.15 + rnorm(220)))
+fit_i1 <- Arima(y_i1, order = c(0, 1, 0), include.drift = TRUE)
+plot_fan_chart(fit_i1, steps = 30, levels = c(0.50, 0.80, 0.95), history = 80)
+```
+
+With two unit roots, $\Delta^2 y_t = \varepsilon_t$, the current slope
+persists: $\hat y_{T+h|T} = y_T + h\,\Delta y_T$, a linear forecast without
+any deterministic term.
+
+```{r}
+set.seed(707)
+y_i2 <- ts(cumsum(cumsum(rnorm(220, sd = 0.3))))
+fit_i2 <- Arima(y_i2, order = c(0, 2, 0))
+plot_fan_chart(fit_i2, steps = 30, levels = c(0.50, 0.80, 0.95), history = 80)
+```
+
+The $\psi$-weights die out for $d = 0$, are constant for $d = 1$, and grow
+linearly for $d = 2$. Relative to $\sigma^2$, the forecast-error variance
+therefore converges, grows like $h$, or grows like $h^3$:
+
+```{r}
+fit_rw <- Arima(ts(cumsum(rnorm(220))), order = c(0, 1, 0))
+h <- 30
+ratios <- rbind(
+  data.frame(h = 1:h, ratio = forecast_error_variance(fit_arma11, h) / fit_arma11$sigma2,
+             model = "d = 0: ARMA(1,1)"),
+  data.frame(h = 1:h, ratio = forecast_error_variance(fit_rw, h) / fit_rw$sigma2,
+             model = "d = 1: random walk"),
+  data.frame(h = 1:h, ratio = forecast_error_variance(fit_i2, h) / fit_i2$sigma2,
+             model = "d = 2")
+)
+ggplot(ratios, aes(h, ratio, colour = model)) +
+  geom_line() +
+  scale_y_log10() +
+  labs(x = "Horizon", y = "FEV / sigma^2 (log scale)", colour = NULL) +
+  theme_minimal()
+```
+
+## Models with regressors
+
+The arimatools forecasting functions handle a mean or a drift. Models with
+other regressors need their future values, and are left to
+`forecast::forecast(fit, xreg = ...)`; `dynamic_forecast()` says so.
+
+A constant in the second-difference equation, which `forecast::Arima()`
+does not allow with $d = 2$, can be supplied as the regressor
+$x_t = t^2/2$, whose second difference is one:
+
+```{r}
+#| error: true
+set.seed(808)
+n2 <- 220
+y_i2c <- ts(cumsum(cumsum(0.025 + rnorm(n2, sd = 0.25))))
+x <- (1:n2)^2 / 2
+fit_i2c <- Arima(y_i2c, order = c(0, 2, 0), xreg = x)
+dynamic_forecast(fit_i2c, 30)
+```
+
+```{r}
+fc_i2c <- forecast(fit_i2c, xreg = ((n2 + 1):(n2 + 30))^2 / 2, level = c(50, 80, 95))
+autoplot(fc_i2c, include = 80) + theme_minimal()
+```
+
+### Forecasting after an intervention
+
+The same applies to intervention models built with `outlier_regressors()`.
+An additive outlier close to the forecast origin distorts the estimated
+dynamics and the forecast; modeling it explicitly protects both.
+
+```{r}
+set.seed(909)
+u <- as.numeric(arima.sim(list(ar = 0.7, ma = 0.4), n = 240))
+y_out <- ts(u); y_out[233] <- y_out[233] + 8
+
+X_ao <- outlier_regressors(y_out, positions = 233, types = "AO")
+fit_int <- Arima(y_out, order = c(1, 0, 1), xreg = X_ao, include.mean = FALSE)
+```
+
+To forecast, supply the future values of the intervention regressor, with
+the same column name as in estimation:
+
+| Intervention | Future values $X_{T+1}, X_{T+2}, \dots$ |
+|---|---|
+| Additive outlier (AO) | $0, 0, 0, \dots$ |
+| Level shift (LS) | $1, 1, 1, \dots$ |
+| Temporary change (TC) | $\delta^{T+1-t_0}, \delta^{T+2-t_0}, \dots$ |
+
+```{r}
+h <- 20
+X_future <- matrix(0, nrow = h, ncol = 1, dimnames = list(NULL, colnames(X_ao)))
+fc_int <- forecast(fit_int, xreg = X_future, level = c(50, 80, 95))
+autoplot(fc_int, include = 60) + theme_minimal()
+```
+
+The meaning of the intervention must therefore be specified before
+forecasting, since it determines the future values of the regressor.
