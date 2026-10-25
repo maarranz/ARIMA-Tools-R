@@ -10,7 +10,7 @@ remotes::install_github("maarranz/ARIMA-Tools-R")
 library(arimatools)
 ```
 
-To also install the vignettes (worked examples):
+To also install the vignettes (worked examples), which requires [pandoc](https://pandoc.org) (bundled with RStudio; otherwise `brew install pandoc` on macOS or the installer from pandoc.org):
 
 ```r
 remotes::install_github("maarranz/ARIMA-Tools-R", dependencies = TRUE, build_vignettes = TRUE)
