@@ -9,7 +9,8 @@ plot_fan_chart(
   steps = 20,
   levels = c(0.5, 0.7, 0.8, 0.9, 0.95, 0.99),
   history = 50,
-  interactive = FALSE
+  interactive = FALSE,
+  xreg = NULL
 )
 }
 \arguments{
@@ -23,6 +24,12 @@ or \code{\link[stats:arima]{stats::arima()}}.}
 \item{history}{Number of final observations to display (\code{NULL} = all).}
 
 \item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
+
+\item{xreg}{Future values of the regressors of the model, other than the
+drift: a matrix (or \code{ts} matrix) with \code{steps} rows and one column per
+regressor, named as in estimation (any order). \code{NULL} (default) for models
+without regressors. A \code{ts} matrix must start in the period after the end
+of the sample. For interventions, use \code{\link[=extend_interventions]{extend_interventions()}}.}
 }
 \value{
 A ggplot object (or a plotly widget when \code{interactive = TRUE}).

@@ -4,7 +4,14 @@
 \alias{plot_forecast}
 \title{Plot recursive forecasts with prediction-interval lines}
 \usage{
-plot_forecast(fit, steps = 20, level = 0.95, history = 50, interactive = FALSE)
+plot_forecast(
+  fit,
+  steps = 20,
+  level = 0.95,
+  history = 50,
+  interactive = FALSE,
+  xreg = NULL
+)
 }
 \arguments{
 \item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
@@ -17,6 +24,12 @@ or \code{\link[stats:arima]{stats::arima()}}.}
 \item{history}{Number of final observations to display (\code{NULL} = all).}
 
 \item{interactive}{If \code{TRUE}, return a plotly widget (requires 'plotly').}
+
+\item{xreg}{Future values of the regressors of the model, other than the
+drift: a matrix (or \code{ts} matrix) with \code{steps} rows and one column per
+regressor, named as in estimation (any order). \code{NULL} (default) for models
+without regressors. A \code{ts} matrix must start in the period after the end
+of the sample. For interventions, use \code{\link[=extend_interventions]{extend_interventions()}}.}
 }
 \value{
 A ggplot object (or a plotly widget when \code{interactive = TRUE}).

@@ -38,13 +38,13 @@ plot_fan_chart(fit, steps = 20)
 
 ## Public API
 
-The same 26 functions as the Python package, with the same names, plus three outlier functions (R only for now), exported flat (`arimatools::function()` or `library(arimatools)`).
+All 30 functions of the Python package, with the same names, plus two R-only functions for automatic outlier detection (`detect_outliers`, `plot_outliers`), exported flat (`arimatools::function()` or `library(arimatools)`).
 
 - **Estimation and model properties:** `coefficient_diagnostics`, `parameter_correlation`, `joint_significance`, `root_diagnostics`, `is_causal`, `is_invertible`, `common_roots`, `root_summary`, `plot_inverse_roots`.
 - **Diagnostics:** `ljung_box_test`, `residual_correlations`, `jarque_bera_test`, `plot_residual_diagnostics`, `dynamic_effects`, `plot_dynamic_effects`, `recursive_estimation`, `plot_parameter_stability`.
 - **Model comparison and selection:** `compare_models`, `order_search`, `select_model`, `auto_arima`, `auto_arima_summary`. `order_search` and `compare_models` estimate and report; only `select_model` chooses, and only among comparable models (same d, same sample, a genuine likelihood).
-- **Forecasting:** `forecast_error_variance`, `dynamic_forecast`, `plot_forecast`, `plot_fan_chart` (default fan coverages `c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99)`).
-- **Outliers (AO, LS, TC; nonseasonal models):** `outlier_regressors` (dummies for dates you choose, e.g. `"2020Q2"`), `detect_outliers` (Chen–Liu procedure via `tsoutliers::tso()`, for a fitted model, a fixed order or an auto.arima choice), `plot_outliers` (observed vs adjusted series and the combined outlier effect, for detected or hand-picked outliers). Models with explanatory variables or a Box–Cox transformation are rejected; warnings and non-convergence are reported.
+- **Forecasting:** `forecast_error_variance`, `dynamic_forecast`, `plot_forecast`, `plot_fan_chart` (default fan coverages `c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99)`). Models with regressors or interventions take their future values through `xreg`.
+- **Interventions and outliers (AO, LS, TC):** `outlier_regressors` (regressors for dates you choose, e.g. `"2020Q2"`), `extend_interventions` (their future values, for forecasting), `intervention_effects` (estimated contributions and adjusted series), `plot_interventions` (the specified dates before estimation, the estimated effects after); R only: `detect_outliers` (Chen–Liu procedure via `tsoutliers::tso()`, for nonseasonal models given as a fitted model, a fixed order or an auto.arima choice) and `plot_outliers` (observed vs adjusted series and combined effect, for detected or hand-picked outliers). Models with other explanatory variables or a Box–Cox transformation are rejected by the detection; warnings and non-convergence are reported.
 
 **Vignettes:** `vignette("model-building", package = "arimatools")` (estimation and selection), `vignette("diagnostics", package = "arimatools")` (diagnostics, integration, interventions) and `vignette("forecasting", package = "arimatools")` (dynamic forecasting).
 
@@ -69,6 +69,8 @@ The port is idiomatic R rather than a line-by-line translation.
 | `sigma2` | ML estimate, SSR/n | `forecast::Arima`: SSR/(n′ − #coefficients); `stats::arima`: SSR/n′ (n′ = observations after differencing) |
 | Ljung–Box df | h − p − q | h − p − q − P − Q (identical for nonseasonal models) |
 | `recursive_estimation()` | | also stores the recursive `sigma2`; retries with exact ML if CSS-ML fails |
+| Intervention positions and names | zero-based `positions`; columns `AO_2020Q2`, `AO_pos150` | one-based `positions` (R convention); columns `AO2020Q2`, `AO151` |
+| Future regressors | `dynamic_forecast(..., exog=)` | `dynamic_forecast(..., xreg=)` (the `forecast` package's name) |
 
 Point estimates, log likelihoods, information criteria, roots, psi weights and point forecasts agree with the Python package to about 1e-5 on the same data (exact ML). Standard errors, `sigma2` and residual-based statistics differ slightly for the reasons in the table.
 

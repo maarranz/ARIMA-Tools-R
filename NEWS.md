@@ -1,3 +1,32 @@
+# arimatools 0.5.0
+
+Forecasting with regressors and interventions, and three new functions, as in
+the Python package ARIMA-Tools.
+
+* `dynamic_forecast()`, `plot_forecast()` and `plot_fan_chart()` gain an
+  `xreg` argument with the future values of the model's regressors (other
+  than drift). Models with interventions or ordinary explanatory variables
+  can now be forecast. Point forecasts and intervals equal those of
+  `forecast::forecast(fit, xreg = ...)`. Clear errors for missing, extra or
+  unnamed columns, the wrong number of rows, a `ts` that does not start after
+  the sample, and future intervention values that contradict their definition
+  (AO must be 0, LS 1, TC a geometric decay).
+* New `extend_interventions(X, steps)`: future values of the AO, LS and TC
+  regressors from `outlier_regressors()` (or `detect_outliers()`), with the TC
+  decay continuing from its original date.
+* New `intervention_effects(fit, X)`: each estimated contribution
+  (coefficient times regressor), their sum and the adjusted series; also
+  accepts the output of `detect_outliers()`.
+* New `plot_interventions(y, X, fit = NULL)`: the specified intervention dates
+  before estimation, and the observed and adjusted series with the combined
+  (optionally individual) effects after estimation.
+* `outlier_regressors()` matrices also record where their rows start
+  (`row_start`, `origin_length`), so that they can be extended.
+* Vignettes: the forecasting vignette forecasts interventions with arimatools
+  instead of `forecast::forecast()`; the diagnostics vignette shows
+  `plot_interventions()` and `intervention_effects()`.
+* API guide: drops `self-contained-math`, which broke the equation fonts.
+
 # arimatools 0.4.2
 
 * Every exported function has runnable examples in its help page, on small

@@ -221,6 +221,8 @@ outlier_regressors <- function(y, dates = NULL, types = "AO", delta = 0.7,
   attr(X, "outliers") <- data.frame(type = types, date = labels, index = idx,
                                     stringsAsFactors = FALSE)
   attr(X, "delta") <- delta
+  attr(X, "row_start") <- 0L
+  attr(X, "origin_length") <- n
   X
 }
 
@@ -561,7 +563,9 @@ print.arimatools_outliers <- function(x, digits = 4, ...) {
 #' outlier-adjusted series, with outlier dates marked by type, and the combined
 #' outlier effect over time.
 #'
-#' Works both for automatic detection and for outliers chosen by hand:
+#' Works both for automatic detection and for outliers chosen by hand
+#' (for hand-chosen interventions, [plot_interventions()] can also show the
+#' specification before estimation and the individual effects):
 #' `x` can be the output of [detect_outliers()] or any model fitted with
 #' regressors from [outlier_regressors()]. In the second case the effect is the
 #' regressors multiplied by their estimated coefficients; only columns named
@@ -614,71 +618,8 @@ plot_outliers <- function(x, title = "Outlier Effects", interactive = FALSE) {
          call. = FALSE)
   }
 
-  n <- length(y)
-  tt <- .time_values(y)
-  if (!is.null(X) && ncol(X)) {
-    eff <- as.numeric(as.matrix(X) %*% fit$coef[colnames(X)])
-    first <- apply(as.matrix(X), 2, function(col) which(col != 0)[1])
-    one <- sprintf("%s: %.4f", colnames(X), fit$coef[colnames(X)])
-    # One marker per date; several outliers on the same date share a marker.
-    pos <- sort(unique(first))
-    grp <- lapply(pos, function(i) which(first == i))
-    pts <- data.frame(
-      t = tt[pos], y = as.numeric(y)[pos], eff = eff[pos],
-      type = vapply(grp, function(g) {
-        tp <- unique(substr(colnames(X)[g], 1, 2))
-        if (length(tp) > 1) "Several" else tp
-      }, character(1)),
-      text = vapply(grp, function(g) paste(one[g], collapse = "<br>"), character(1)),
-      stringsAsFactors = FALSE
-    )
-    subtitle <- NULL
-  } else {
-    eff <- numeric(n)
-    pts <- NULL
-    subtitle <- "No outliers detected"
-  }
-
-  series <- rbind(
-    data.frame(t = tt, value = as.numeric(y), series = "Observed"),
-    data.frame(t = tt, value = as.numeric(y) - eff, series = "Adjusted")
-  )
-  series$series <- factor(series$series, levels = c("Observed", "Adjusted"))
-  series$text <- sprintf("%s<br>%s: %.4f", format(series$t), series$series, series$value)
-
-  p1 <- ggplot2::ggplot(series, ggplot2::aes(x = .data$t, y = .data$value)) +
-    suppressWarnings(ggplot2::geom_line(
-      ggplot2::aes(colour = .data$series, group = .data$series, text = .data$text),
-      linewidth = 0.6)) +
-    ggplot2::scale_colour_manual(values = c(Observed = "grey55", Adjusted = "#1F5A96"),
-                                 name = NULL) +
-    ggplot2::labs(title = "Observed and Outlier-Adjusted Series", subtitle = subtitle,
-                  x = NULL, y = .series_name(fit)) +
-    .at_theme()
-
-  edf <- data.frame(t = tt, eff = eff,
-                    text = sprintf("%s<br>Outlier effect: %.4f", format(tt), eff))
-  p2 <- ggplot2::ggplot(edf, ggplot2::aes(x = .data$t, y = .data$eff)) +
-    ggplot2::geom_hline(yintercept = 0, linewidth = 0.3) +
-    suppressWarnings(ggplot2::geom_line(ggplot2::aes(text = .data$text, group = 1),
-                                        colour = "#1F5A96", linewidth = 0.6)) +
-    ggplot2::labs(title = "Combined Outlier Effect", x = NULL, y = "Effect") +
-    .at_theme()
-
-  if (!is.null(pts)) {
-    shapes <- c(AO = 21, LS = 22, TC = 24, Several = 23)
-    p1 <- p1 + suppressWarnings(ggplot2::geom_point(
-      data = pts, ggplot2::aes(x = .data$t, y = .data$y, shape = .data$type,
-                               text = .data$text),
-      fill = "#B2182B", colour = "#B2182B", size = 2.6)) +
-      ggplot2::scale_shape_manual(values = shapes, name = NULL)
-    p2 <- p2 + suppressWarnings(ggplot2::geom_point(
-      data = pts, ggplot2::aes(x = .data$t, y = .data$eff, shape = .data$type,
-                               text = .data$text),
-      fill = "#B2182B", colour = "#B2182B", size = 2.2)) +
-      ggplot2::scale_shape_manual(values = shapes, guide = "none")
-  }
-
-  .stack_panels(list(p1, p2), heights = c(0.6, 0.4), title = title,
-                interactive = interactive)
+  beta <- if (!is.null(X) && ncol(X)) fit$coef[colnames(X)] else numeric(0)
+  .effects_figure(y, X, beta = beta, word = "Outlier", ylab = .series_name(fit),
+                  title = title, interactive = interactive,
+                  none_label = "No outliers detected")
 }

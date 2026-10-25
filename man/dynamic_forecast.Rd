@@ -4,7 +4,7 @@
 \alias{dynamic_forecast}
 \title{Recursive (dynamic) forecasts with normal-theory intervals}
 \usage{
-dynamic_forecast(fit, steps = 20, level = 0.95)
+dynamic_forecast(fit, steps = 20, level = 0.95, xreg = NULL)
 }
 \arguments{
 \item{fit}{A fitted model from \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}}
@@ -13,6 +13,12 @@ or \code{\link[stats:arima]{stats::arima()}}.}
 \item{steps}{Number of horizons (positive integer).}
 
 \item{level}{Coverage of the central prediction interval.}
+
+\item{xreg}{Future values of the regressors of the model, other than the
+drift: a matrix (or \code{ts} matrix) with \code{steps} rows and one column per
+regressor, named as in estimation (any order). \code{NULL} (default) for models
+without regressors. A \code{ts} matrix must start in the period after the end
+of the sample. For interventions, use \code{\link[=extend_interventions]{extend_interventions()}}.}
 }
 \value{
 A data frame with columns \code{horizon}, \code{forecast}, \code{fev}, \code{se},
@@ -33,8 +39,19 @@ they do not include parameter or model-selection uncertainty.
 A warning is issued when the MA part is (nearly) non-invertible; see
 \code{\link[=forecast_error_variance]{forecast_error_variance()}}.
 
-Not supported (an error explains why): models with external regressors other
-than drift (including outlier regressors), models with a Box-Cox
+\strong{Models with regressors.} A mean or a drift is handled automatically. For
+any other regressor in \code{xreg} (interventions from \code{\link[=outlier_regressors]{outlier_regressors()}} or
+ordinary explanatory variables) the forecast needs its future values,
+supplied in \code{xreg}. For interventions, \code{\link[=extend_interventions]{extend_interventions()}} generates
+them: AO stays 0, LS stays 1 and TC keeps decaying from its original date.
+The forecasts are conditional on these future values. The forecast-error
+variances are those of the ARIMA errors, as in a regression with ARIMA
+errors with known regressors; they do not include the uncertainty of the
+estimated intervention effects. As a safeguard, future values of
+intervention columns (named by \code{\link[=outlier_regressors]{outlier_regressors()}}) must follow their
+definition: 0 for AO, 1 for LS, and a geometric decay for TC.
+
+Not supported (an error explains why): models with a Box-Cox
 transformation (\code{lambda}), whose point forecasts and variances would be on
 different scales, and series with missing values, for which the psi-weight
 variances understate the uncertainty.
@@ -47,4 +64,12 @@ fc <- dynamic_forecast(fit, steps = 8, level = 0.90)
 fc
 # phi^h * y_T
 coef(fit)[["ar1"]]^(1:8) * as.numeric(y[250])
+
+# A model with a level shift: supply its future values
+set.seed(2)
+z <- ts(cumsum(rnorm(100)), start = c(2000, 1), frequency = 4)
+z[60:100] <- z[60:100] + 5                  # level shift in 2014Q4
+L <- outlier_regressors(z, dates = "2014Q4", types = "LS")
+fit_ls <- forecast::Arima(z, order = c(1, 1, 0), xreg = L)
+dynamic_forecast(fit_ls, steps = 4, xreg = extend_interventions(L, 4))
 }

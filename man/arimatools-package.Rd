@@ -9,7 +9,9 @@
 R port of the Python package ARIMA-Tools (ATSE, UC3M). Every function takes
 a model fitted with \code{\link[forecast:Arima]{forecast::Arima()}}, \code{\link[forecast:auto.arima]{forecast::auto.arima()}} or
 \code{\link[stats:arima]{stats::arima()}}, except the functions that estimate models themselves
-(\code{\link[=order_search]{order_search()}}, \code{\link[=recursive_estimation]{recursive_estimation()}}, \code{\link[=auto_arima]{auto_arima()}}).
+(\code{\link[=order_search]{order_search()}}, \code{\link[=recursive_estimation]{recursive_estimation()}}, \code{\link[=auto_arima]{auto_arima()}}) and those that
+build intervention regressors (\code{\link[=outlier_regressors]{outlier_regressors()}},
+\code{\link[=extend_interventions]{extend_interventions()}}).
 }
 \details{
 Part of the ATSE software suite, with ARIMA-Tools (Python), ARMA-Theory,

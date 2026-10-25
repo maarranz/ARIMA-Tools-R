@@ -34,7 +34,6 @@ format:
   html:
     output-file: index.html
     embed-resources: true
-    self-contained-math: true
     toc: true
     toc-depth: 2
     theme: none
@@ -46,7 +45,7 @@ format:
 
 `arimatools` is the R port of the Python package [ARIMA-Tools](https://github.com/maarranz/ARIMA-Tools), developed for the **Applied Time Series Econometrics (ATSE)** course at **Universidad Carlos III de Madrid**. It complements `forecast` and `stats` with teaching-oriented tables, summaries, numerical forecasts, and figures.
 
-This document describes the software/API. The ATSE course material provides the econometric theory; the Labs provide fuller worked examples and exercises. The package exposes the same **26 public functions** as the Python version, with the same names, plus three outlier functions that are R-only for now. Models are fitted with `forecast::Arima()` (recommended), `forecast::auto.arima()` or `stats::arima()`, and every function that takes a fitted model accepts any of the three — including the output of `auto_arima()`, which in Python was a separate StatsForecast object.
+This document describes the software/API. The ATSE course material provides the econometric theory; the Labs provide fuller worked examples and exercises. The package exposes all **30 public functions** of the Python version, with the same names, plus two R-only functions for automatic outlier detection (`detect_outliers()`, `plot_outliers()`). Models are fitted with `forecast::Arima()` (recommended), `forecast::auto.arima()` or `stats::arima()`, and every function that takes a fitted model accepts any of the three — including the output of `auto_arima()`, which in Python was a separate StatsForecast object.
 
 Diagnostics have three layers: parameters and model structure, residual behavior, and model behavior (dynamics and parameter stability).
 
@@ -211,9 +210,17 @@ custom_fan <- plot_fan_chart(fit, steps = 12, levels = c(0.95, 0.50, 0.80),
 
 The intervals are Gaussian and conditional on the estimated parameters and the selected model: parameter and model-selection uncertainty are not included. FEV treats past innovations as known. For a complete sample and an invertible MA part, it coincides with the exact Kalman-filter variances of `predict()` and `forecast()`. When the MA polynomial has a root on or very near the unit circle (inverse-root modulus of at least 0.99, typically after overdifferencing), past innovations cannot be recovered, the psi-weight intervals are too narrow, and the forecasting functions issue a warning. The innovation variance is `fit$sigma2`: `forecast::Arima()` reports the degrees-of-freedom-adjusted SSR / (n′ − number of coefficients), where n′ is the number of observations after differencing, whereas `stats::arima()` and Statsmodels report the ML estimate SSR / n′. Using `fit$sigma2` keeps these intervals consistent with `forecast(fit)` for the same object.
 
-Three cases are rejected with an explanation: models with external regressors other than drift (including outlier regressors); models with a Box–Cox transformation (`lambda`), whose point forecasts are on the original scale while the variances would be on the transformed scale; and series with missing values, where the assumption of known past innovations fails and the intervals would be too narrow (use `forecast::forecast()` in that case).
+**Models with regressors.** A mean or drift is handled automatically. Any other regressor (interventions from `outlier_regressors()` or ordinary explanatory variables) needs its future values, supplied through `xreg` in `dynamic_forecast()`, `plot_forecast()` and `plot_fan_chart()`: a matrix with `steps` rows and the columns named as in estimation (any order); a `ts` matrix must start in the period after the sample. For interventions, `extend_interventions()` generates them (see Outliers and interventions). Forecasts are conditional on these values; the variances are those of the ARIMA errors and do not include the uncertainty of the estimated coefficients. Point forecasts and intervals equal those of `forecast::forecast(fit, xreg = ...)`.
 
-## Outliers
+```r
+L <- outlier_regressors(y, dates = "2008M09", types = "LS")
+fit_ls <- Arima(y, order = c(1, 0, 1), xreg = L)
+fc_ls <- dynamic_forecast(fit_ls, steps = 12, xreg = extend_interventions(L, 12))
+```
+
+Two cases are rejected with an explanation: models with a Box–Cox transformation (`lambda`), whose point forecasts are on the original scale while the variances would be on the transformed scale; and series with missing values, where the assumption of known past innovations fails and the intervals would be too narrow (use `forecast::forecast()` in that case).
+
+## Outliers and interventions
 
 Three outlier types are supported, for nonseasonal models: an **additive outlier** (AO) is 1 at its date and 0 elsewhere; a **level shift** (LS) is 1 from its date onwards; a **temporary change** (TC) is `delta^(t - t0)` from its date onwards (`delta = 0.7` by default).
 
@@ -226,12 +233,30 @@ dummy_table <- coefficient_diagnostics(fit_dummies)
 dummy_test <- joint_significance(fit_dummies, colnames(X))
 ```
 
+`plot_interventions(y, X)` shows the series with the specified dates before estimation; with a fitted model, `plot_interventions(y, X, fit, individual = TRUE)` adds the estimated effects. `intervention_effects(fit, X)` returns the numbers: each contribution (coefficient times regressor), their sum (`combined`) and the adjusted series (`adjusted`, observed minus combined; not a residual, since the ARIMA dynamics and the mean remain). Both reject `X` matrices that were modified after `outlier_regressors()` created them.
+
+```r
+spec_plot <- plot_interventions(y, X)
+effects <- intervention_effects(fit_dummies, X)
+effects_plot <- plot_interventions(y, X, fit_dummies, individual = TRUE)
+```
+
+**Forecasting with interventions.** `extend_interventions(X, steps)` continues the regressors beyond the sample: AO stays 0 (it happened once), LS stays 1 (it is permanent), and TC keeps decaying from its original date (the decay does not restart at the forecast origin). Pass the result as `xreg` to the forecasting functions. Future values of intervention columns that contradict these definitions are rejected.
+
+```r
+future <- extend_interventions(X, 12)
+fc_dummies <- dynamic_forecast(fit_dummies, steps = 12, xreg = future)
+fan_dummies <- plot_fan_chart(fit_dummies, steps = 12, xreg = future)
+```
+
 `detect_outliers()` runs the Chen–Liu (1993) procedure through `tsoutliers::tso()` and re-estimates the final model with `forecast::Arima()` and regressors from `outlier_regressors()`. The model can be a fitted nonseasonal model (order and mean or drift kept fixed), a series with `order = c(p, d, q)`, or a series alone, in which case auto.arima chooses the order (BIC, nonseasonal). The critical value `cval` follows the tsoutliers rule (3 for n ≤ 50, 4 for n ≥ 450, linear in between) unless given. The result prints a dated table of outliers and contains the final model (`$fit`), the regressors, the combined effect and the adjusted series.
 
 ```r
 detected <- detect_outliers(fit)
 detected$outliers
 diagnostics_after <- ljung_box_test(detected$fit, lags = c(8, 12))
+fc_detected <- dynamic_forecast(detected$fit, steps = 12,
+                                xreg = extend_interventions(detected$regressors, 12))
 comparison_outliers <- compare_models(fit, detected$fit,
                                       names = c("No outliers", "Outliers"))
 ```
@@ -251,7 +276,7 @@ dummy_plot <- plot_outliers(fit_dummies, title = "Hand-picked outliers")
 
 **Dates.** Dates are checked against the frequency of the series: `"2020Q2"` or `"2020:2"` for quarterly data, `"2008M09"` or `"2008:9"` for monthly data, `1990` for annual data, and `Date` objects for all three. An invalid period such as `"2000Q5"`, or a monthly date on a quarterly series, is an error. Weekly and daily series need `positions`.
 
-Detection currently uses tsoutliers; the arguments and output are defined independently of it so that the algorithm can later be replaced without changing code that uses these functions. Forecasting models with outlier regressors is not supported yet.
+Detection currently uses tsoutliers; the arguments and output are defined independently of it so that the algorithm can later be replaced without changing code that uses these functions.
 
 ## Compact API summary
 
@@ -282,10 +307,13 @@ Detection currently uses tsoutliers; the arguments and output are defined indepe
 | `plot_parameter_stability(recursive, parameters = NULL, reference = TRUE, breakpoint = NULL, title = "Recursive Parameter Stability", interactive = FALSE)` | ggplot: recursive estimates and intervals |
 | `auto_arima_summary(model)` | summary list: selected model |
 | `forecast_error_variance(fit, steps = 20)` | numeric vector: forecast-error variances |
-| `dynamic_forecast(fit, steps = 20, level = 0.95)` | data frame: forecast, fev, se, lower, upper |
-| `plot_forecast(fit, steps = 20, level = 0.95, history = 50, interactive = FALSE)` | ggplot: forecast and unfilled interval lines |
-| `plot_fan_chart(fit, steps = 20, levels = c(0.5, 0.7, 0.8, 0.9, 0.95, 0.99), history = 50, interactive = FALSE)` | ggplot: forecast and nested shaded intervals |
+| `dynamic_forecast(fit, steps = 20, level = 0.95, xreg = NULL)` | data frame: forecast, fev, se, lower, upper |
+| `plot_forecast(fit, steps = 20, level = 0.95, history = 50, interactive = FALSE, xreg = NULL)` | ggplot: forecast and unfilled interval lines |
+| `plot_fan_chart(fit, steps = 20, levels = c(0.5, 0.7, 0.8, 0.9, 0.95, 0.99), history = 50, interactive = FALSE, xreg = NULL)` | ggplot: forecast and nested shaded intervals |
 | `outlier_regressors(y, dates = NULL, types = "AO", delta = 0.7, positions = NULL)` | ts matrix: AO/LS/TC regressors named by type and date |
+| `extend_interventions(X, steps = 20)` | ts matrix: future values of the interventions in `X` |
+| `intervention_effects(fit, X = NULL)` | data frame: observed, contributions, combined, adjusted |
+| `plot_interventions(y, X, fit = NULL, individual = FALSE, title = "Intervention Effects", interactive = FALSE)` | ggplot/patchwork: specified dates, or estimated effects |
 | `detect_outliers(x, order = NULL, types = c("AO", "LS", "TC"), cval = NULL, delta = 0.7, include.constant = NULL, ...)` | outlier table, final model, effects, adjusted series |
 | `plot_outliers(x, title = "Outlier Effects", interactive = FALSE)` | patchwork: adjusted series and outlier effects |
 

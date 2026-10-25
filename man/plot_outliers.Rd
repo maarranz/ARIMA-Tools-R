@@ -23,7 +23,9 @@ outlier-adjusted series, with outlier dates marked by type, and the combined
 outlier effect over time.
 }
 \details{
-Works both for automatic detection and for outliers chosen by hand:
+Works both for automatic detection and for outliers chosen by hand
+(for hand-chosen interventions, \code{\link[=plot_interventions]{plot_interventions()}} can also show the
+specification before estimation and the individual effects):
 \code{x} can be the output of \code{\link[=detect_outliers]{detect_outliers()}} or any model fitted with
 regressors from \code{\link[=outlier_regressors]{outlier_regressors()}}. In the second case the effect is the
 regressors multiplied by their estimated coefficients; only columns named

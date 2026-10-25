@@ -177,58 +177,93 @@ ggplot(ratios, aes(h, ratio, colour = model)) +
 
 ## Models with regressors
 
-The arimatools forecasting functions handle a mean or a drift. Models with
-other regressors need their future values, and are left to
-`forecast::forecast(fit, xreg = ...)`; `dynamic_forecast()` says so.
+A mean or a drift is handled automatically. For any other regressor, the
+forecast needs its future values, passed to `dynamic_forecast()`,
+`plot_forecast()` or `plot_fan_chart()` through `xreg`. The forecasts are
+conditional on those values. The forecast-error variances are those of the
+ARIMA errors, as in a regression with ARIMA errors with known regressors, so
+they do not include the uncertainty of the estimated regression coefficients.
 
 A constant in the second-difference equation, which `forecast::Arima()`
 does not allow with $d = 2$, can be supplied as the regressor
-$x_t = t^2/2$, whose second difference is one:
+$x_t = t^2/2$, whose second difference is one. Its future values are known:
 
-```{r, error = TRUE}
+```{r}
 set.seed(808)
 n2 <- 220
 y_i2c <- ts(cumsum(cumsum(0.025 + rnorm(n2, sd = 0.25))))
 x <- (1:n2)^2 / 2
 fit_i2c <- Arima(y_i2c, order = c(0, 2, 0), xreg = x)
-dynamic_forecast(fit_i2c, 30)
+x_future <- ((n2 + 1):(n2 + 30))^2 / 2
+head(dynamic_forecast(fit_i2c, 30, xreg = x_future), 3)
+plot_fan_chart(fit_i2c, steps = 30, levels = c(0.50, 0.80, 0.95), history = 80,
+               xreg = x_future)
 ```
 
-```{r}
-fc_i2c <- forecast(fit_i2c, xreg = ((n2 + 1):(n2 + 30))^2 / 2, level = c(50, 80, 95))
-autoplot(fc_i2c, include = 80) + theme_minimal()
+Without `xreg`, `dynamic_forecast()` stops and says which future values are
+needed:
+
+```{r, error = TRUE}
+dynamic_forecast(fit_i2c, 30)
 ```
 
 ### Forecasting after an intervention
 
-The same applies to intervention models built with `outlier_regressors()`.
+For intervention models built with `outlier_regressors()`, the future values
+follow from the meaning of each intervention:
+
+| Intervention | Future values $X_{T+1}, X_{T+2}, \dots$ |
+|---|---|
+| Additive outlier (AO) | $0, 0, 0, \dots$ (it happened once) |
+| Level shift (LS) | $1, 1, 1, \dots$ (it is permanent) |
+| Temporary change (TC) | $\delta^{T+1-t_0}, \delta^{T+2-t_0}, \dots$ (it keeps decaying) |
+
+`extend_interventions()` generates them from the matrix used in estimation.
+The decay of a TC continues from its original date; it does not restart at
+the forecast origin.
+
+```{r}
+yq <- ts(rnorm(40), start = c(2015, 1), frequency = 4)
+Xq <- outlier_regressors(yq, dates = c("2020Q2", "2020Q3", "2023Q1"),
+                         types = c("AO", "TC", "LS"), delta = 0.5)
+extend_interventions(Xq, steps = 4)
+```
+
 An additive outlier close to the forecast origin distorts the estimated
-dynamics and the forecast; modeling it explicitly protects both.
+dynamics and therefore the forecast. Modeling it explicitly protects both:
 
 ```{r}
 set.seed(909)
 u <- as.numeric(arima.sim(list(ar = 0.7, ma = 0.4), n = 240))
 y_out <- ts(u); y_out[233] <- y_out[233] + 8
 
+fit_ignored <- Arima(y_out, order = c(1, 0, 1), include.mean = FALSE)
 X_ao <- outlier_regressors(y_out, positions = 233, types = "AO")
 fit_int <- Arima(y_out, order = c(1, 0, 1), xreg = X_ao, include.mean = FALSE)
+
+h <- 12
+X_future <- extend_interventions(X_ao, h)
+data.frame(
+  horizon = 1:h,
+  `outlier ignored` = dynamic_forecast(fit_ignored, h)$forecast,
+  `outlier modeled` = dynamic_forecast(fit_int, h, xreg = X_future)$forecast,
+  check.names = FALSE
+)
 ```
-
-To forecast, supply the future values of the intervention regressor, with
-the same column name as in estimation:
-
-| Intervention | Future values $X_{T+1}, X_{T+2}, \dots$ |
-|---|---|
-| Additive outlier (AO) | $0, 0, 0, \dots$ |
-| Level shift (LS) | $1, 1, 1, \dots$ |
-| Temporary change (TC) | $\delta^{T+1-t_0}, \delta^{T+2-t_0}, \dots$ |
 
 ```{r}
-h <- 20
-X_future <- matrix(0, nrow = h, ncol = 1, dimnames = list(NULL, colnames(X_ao)))
-fc_int <- forecast(fit_int, xreg = X_future, level = c(50, 80, 95))
-autoplot(fc_int, include = 60) + theme_minimal()
+plot_fan_chart(fit_int, steps = h, levels = c(0.50, 0.80, 0.95), history = 60,
+               xreg = X_future)
 ```
 
-The meaning of the intervention must therefore be specified before
-forecasting, since it determines the future values of the regressor.
+The same works for outliers found by `detect_outliers()`: the final model
+and its regressors are `found$fit` and `found$regressors`.
+
+```{r, eval = requireNamespace("tsoutliers", quietly = TRUE)}
+found <- detect_outliers(y_out, order = c(1, 0, 1), include.constant = FALSE)
+found
+dynamic_forecast(found$fit, 4, xreg = extend_interventions(found$regressors, 4))
+```
+
+The meaning of each intervention must be specified before forecasting,
+since it determines the future values of its regressor.

@@ -95,14 +95,30 @@ forecast_error_variance <- function(fit, steps = 20) {
 #' A warning is issued when the MA part is (nearly) non-invertible; see
 #' [forecast_error_variance()].
 #'
-#' Not supported (an error explains why): models with external regressors other
-#' than drift (including outlier regressors), models with a Box-Cox
+#' **Models with regressors.** A mean or a drift is handled automatically. For
+#' any other regressor in `xreg` (interventions from [outlier_regressors()] or
+#' ordinary explanatory variables) the forecast needs its future values,
+#' supplied in `xreg`. For interventions, [extend_interventions()] generates
+#' them: AO stays 0, LS stays 1 and TC keeps decaying from its original date.
+#' The forecasts are conditional on these future values. The forecast-error
+#' variances are those of the ARIMA errors, as in a regression with ARIMA
+#' errors with known regressors; they do not include the uncertainty of the
+#' estimated intervention effects. As a safeguard, future values of
+#' intervention columns (named by [outlier_regressors()]) must follow their
+#' definition: 0 for AO, 1 for LS, and a geometric decay for TC.
+#'
+#' Not supported (an error explains why): models with a Box-Cox
 #' transformation (`lambda`), whose point forecasts and variances would be on
 #' different scales, and series with missing values, for which the psi-weight
 #' variances understate the uncertainty.
 #'
 #' @inheritParams forecast_error_variance
 #' @param level Coverage of the central prediction interval.
+#' @param xreg Future values of the regressors of the model, other than the
+#'   drift: a matrix (or `ts` matrix) with `steps` rows and one column per
+#'   regressor, named as in estimation (any order). `NULL` (default) for models
+#'   without regressors. A `ts` matrix must start in the period after the end
+#'   of the sample. For interventions, use [extend_interventions()].
 #' @return A data frame with columns `horizon`, `forecast`, `fev`, `se`,
 #'   `lower` and `upper`.
 #' @examples
@@ -113,20 +129,28 @@ forecast_error_variance <- function(fit, steps = 20) {
 #' fc
 #' # phi^h * y_T
 #' coef(fit)[["ar1"]]^(1:8) * as.numeric(y[250])
+#'
+#' # A model with a level shift: supply its future values
+#' set.seed(2)
+#' z <- ts(cumsum(rnorm(100)), start = c(2000, 1), frequency = 4)
+#' z[60:100] <- z[60:100] + 5                  # level shift in 2014Q4
+#' L <- outlier_regressors(z, dates = "2014Q4", types = "LS")
+#' fit_ls <- forecast::Arima(z, order = c(1, 1, 0), xreg = L)
+#' dynamic_forecast(fit_ls, steps = 4, xreg = extend_interventions(L, 4))
 #' @export
-dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
+dynamic_forecast <- function(fit, steps = 20, level = 0.95, xreg = NULL) {
   .check_fit(fit)
-  out <- .dynamic_forecast(fit, steps, level)
+  out <- .dynamic_forecast(fit, steps, level, xreg)
   .warn_ma_unit_root(fit)
   out
 }
 
 # dynamic_forecast() without the MA unit-root warning, so that plot_fan_chart()
 # warns once rather than once per band.
-.dynamic_forecast <- function(fit, steps, level) {
+.dynamic_forecast <- function(fit, steps, level, xreg = NULL) {
   .check_level(level, "level")
   fev <- .fev(fit, steps)
-  fc <- .point_forecast(fit, length(fev))
+  fc <- .point_forecast(fit, length(fev), xreg)
   se <- sqrt(fev)
   crit <- stats::qnorm(1 - (1 - level) / 2)
   out <- data.frame(horizon = seq_along(fev), forecast = as.numeric(fc),
@@ -151,28 +175,112 @@ dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
   invisible(fit)
 }
 
-.point_forecast <- function(fit, steps) {
-  xreg_names <- setdiff(colnames(fit$xreg), "drift")
-  if (length(xreg_names) && all(grepl(.outlier_pattern, xreg_names))) {
-    stop("Forecasting models with outlier regressors (",
-         paste(xreg_names, collapse = ", "), ") is not supported yet.",
+.point_forecast <- function(fit, steps, xreg = NULL) {
+  newx <- .future_xreg(fit, xreg, steps)
+  if (is.null(newx)) return(forecast::forecast(fit, h = steps, level = 95)$mean)
+  forecast::forecast(fit, h = steps, level = 95, xreg = newx)$mean
+}
+
+# Validate the future values of the model's regressors (other than drift) and
+# return them in the order used in estimation.
+.future_xreg <- function(fit, xreg, steps) {
+  # Regressors are the coefficients that are not ARMA terms, mean or drift
+  # (stats::arima fits do not store their xreg matrix).
+  cn <- names(fit$coef)
+  regs <- cn[!grepl("^s?(ar|ma)[0-9]+$", cn) & !cn %in% c("intercept", "drift")]
+  if (!length(regs)) {
+    if (!is.null(xreg)) {
+      stop("The model has no regressors (other than a mean or drift), so `xreg` is ",
+           "not needed.", call. = FALSE)
+    }
+    return(NULL)
+  }
+  is_int <- grepl(.outlier_pattern, regs)
+  if (is.null(xreg)) {
+    if (all(is_int)) {
+      stop("The model contains interventions (", paste(regs, collapse = ", "),
+           "). Supply their future values, e.g. `xreg = extend_interventions(X, ",
+           "steps)` with X the matrix from outlier_regressors() (or ",
+           "found$regressors from detect_outliers()).", call. = FALSE)
+    }
+    stop("The model has regressors (", paste(regs, collapse = ", "), "). Supply ",
+         "their future values with `xreg =`: ",
+         if (length(regs) == 1L) paste0("a vector of length ", steps, " (or a ",
+                                        "one-column matrix named '", regs, "')")
+         else paste0("a matrix with ", steps, " rows and columns named ",
+                     paste(regs, collapse = ", ")),
+         if (any(is_int)) "; extend_interventions() gives the intervention columns",
+         ".", call. = FALSE)
+  }
+  X <- xreg
+  if (is.null(dim(X))) {
+    if (length(regs) != 1L) {
+      stop("`xreg` must be a matrix with columns ", paste(regs, collapse = ", "), ".",
+           call. = FALSE)
+    }
+    X <- matrix(X, ncol = 1, dimnames = list(NULL, regs))
+    if (stats::is.ts(xreg)) X <- stats::ts(X, start = stats::start(xreg),
+                                           frequency = stats::frequency(xreg))
+  }
+  if (is.null(colnames(X))) {
+    stop("`xreg` must have column names: ", paste(regs, collapse = ", "), ".",
          call. = FALSE)
   }
-  if (length(xreg_names)) {
-    stop("Models with external regressors (", paste(xreg_names, collapse = ", "),
-         ") need future regressor values; use forecast::forecast(fit, xreg = ...).",
-         call. = FALSE)
+  miss <- setdiff(regs, colnames(X)); extra <- setdiff(colnames(X), regs)
+  if (length(miss) || length(extra)) {
+    stop("The columns of `xreg` must be the regressors of the model (",
+         paste(regs, collapse = ", "), ")",
+         if (length(miss)) paste0("; missing: ", paste(miss, collapse = ", ")),
+         if (length(extra)) paste0("; not in the model: ", paste(extra, collapse = ", ")),
+         ".", call. = FALSE)
   }
-  forecast::forecast(fit, h = steps, level = 95)$mean
+  if (nrow(X) != steps) {
+    stop("`xreg` has ", nrow(X), " rows but ", steps, " forecast steps were ",
+         "requested.", call. = FALSE)
+  }
+  if (!is.numeric(as.matrix(X))) stop("`xreg` must contain finite numeric values.",
+                                      call. = FALSE)
+  M <- .plain(as.matrix(X)[, regs, drop = FALSE])
+  colnames(M) <- regs
+  if (any(!is.finite(M))) {
+    stop("`xreg` must contain finite numeric values.", call. = FALSE)
+  }
+  y <- tryCatch(.response(fit), error = function(e) NULL)
+  if (stats::is.ts(X) && !is.null(y) && stats::is.ts(y)) {
+    f <- stats::frequency(y)
+    expected <- stats::tsp(y)[2] + 1 / f
+    if (stats::frequency(X) != f || abs(stats::tsp(X)[1] - expected) > 1e-6) {
+      stop("`xreg` must start in the period after the end of the sample (",
+           .period_label(stats::ts(0, start = expected, frequency = f), 1), ").",
+           call. = FALSE)
+    }
+  }
+  for (j in which(is_int)) {
+    v <- M[, regs[j]]; type <- substr(regs[j], 1, 2)
+    ok <- switch(type,
+      AO = all(v == 0),
+      LS = all(v == 1),
+      TC = all(v > 0 & v < 1) &&
+        (length(v) < 2 || (all(diff(log(v)) < 0) &&
+                             isTRUE(all.equal(diff(log(v)), rep(diff(log(v))[1], length(v) - 1))))))
+    if (!ok) {
+      rule <- switch(type, AO = "0 (an additive outlier happened once)",
+                     LS = "1 (a level shift is permanent)",
+                     TC = "a geometric decay continuing from the event date")
+      stop("Future values of ", regs[j], " must be ", rule, ". Use ",
+           "extend_interventions() to generate them.", call. = FALSE)
+    }
+  }
+  M
 }
 
 # Observed history and future time values on a common axis.
-.forecast_axis <- function(fit, steps, history) {
+.forecast_axis <- function(fit, steps, history, xreg = NULL) {
   if (!is.null(history)) history <- .check_count(history, "history", min = 1)
   y <- .response(fit)
   obs <- as.numeric(y)
   tt <- .time_values(y)
-  fc <- .point_forecast(fit, steps)
+  fc <- .point_forecast(fit, steps, xreg)
   ft <- .time_values(fc)
   if (inherits(tt, "Date") != inherits(ft, "Date") || is.numeric(tt) && !stats::is.ts(y)) {
     tt <- seq_along(obs)
@@ -220,9 +328,9 @@ dynamic_forecast <- function(fit, steps = 20, level = 0.95) {
 #' plot_forecast(fit, steps = 12, history = 40)
 #' @export
 plot_forecast <- function(fit, steps = 20, level = 0.95, history = 50,
-                          interactive = FALSE) {
-  tab <- dynamic_forecast(fit, steps = steps, level = level)
-  ax <- .forecast_axis(fit, nrow(tab), history)
+                          interactive = FALSE, xreg = NULL) {
+  tab <- dynamic_forecast(fit, steps = steps, level = level, xreg = xreg)
+  ax <- .forecast_axis(fit, nrow(tab), history, xreg)
   lab <- sprintf("%g%% prediction interval", 100 * level)
   t0 <- utils::tail(ax$t, 1); y0 <- utils::tail(ax$y, 1)
   fc_df <- data.frame(t = c(t0, ax$future), y = c(y0, tab$forecast),
@@ -268,7 +376,7 @@ plot_forecast <- function(fit, steps = 20, level = 0.95, history = 50,
 #' @export
 plot_fan_chart <- function(fit, steps = 20,
                            levels = c(0.50, 0.70, 0.80, 0.90, 0.95, 0.99),
-                           history = 50, interactive = FALSE) {
+                           history = 50, interactive = FALSE, xreg = NULL) {
   if (!is.numeric(levels) || !length(levels) || any(!is.finite(levels)) ||
       any(levels <= 0 | levels >= 1)) {
     stop("Every level must lie strictly between 0 and 1.", call. = FALSE)
@@ -276,9 +384,10 @@ plot_fan_chart <- function(fit, steps = 20,
   if (anyDuplicated(levels)) stop("`levels` must not contain duplicates.", call. = FALSE)
   levels <- sort(levels, decreasing = TRUE)
   .check_fit(fit)
-  tabs <- lapply(levels, function(l) .dynamic_forecast(fit, steps = steps, level = l))
+  tabs <- lapply(levels, function(l) .dynamic_forecast(fit, steps = steps, level = l,
+                                                      xreg = xreg))
   .warn_ma_unit_root(fit)
-  ax <- .forecast_axis(fit, nrow(tabs[[1]]), history)
+  ax <- .forecast_axis(fit, nrow(tabs[[1]]), history, xreg)
   t0 <- utils::tail(ax$t, 1); y0 <- utils::tail(ax$y, 1)
   bx <- c(t0, ax$future)
   cover <- paste0(sprintf("%g%%", 100 * rev(levels)), collapse = ", ")

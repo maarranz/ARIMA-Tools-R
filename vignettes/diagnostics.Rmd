@@ -232,6 +232,39 @@ with outlier dates marked by type, and the combined outlier effect.
 plot_outliers(fit_ao, title = "Additive outlier: estimated effect")
 ```
 
+### Several interventions: specification and effects
+
+With several interventions it helps to look at the specification before
+estimating it. `plot_interventions()` without a model shows the series with
+the chosen dates, marked by type. Below, a quarterly AR(1) receives an
+additive outlier in 2004Q4, a temporary change in 2008Q4 and a level shift in
+2012Q2.
+
+```{r}
+set.seed(321)
+yq <- ts(arima.sim(list(ar = 0.6), n = 120), start = c(1990, 1), frequency = 4)
+Xq <- outlier_regressors(yq, dates = c("2004Q4", "2008Q4", "2012Q2"),
+                         types = c("AO", "TC", "LS"), delta = 0.7)
+yq <- yq + as.numeric(unclass(Xq) %*% c(5, -4, 3))   # true effects 5, -4, 3
+plot_interventions(yq, Xq)
+```
+
+After estimation, `intervention_effects()` gives each estimated
+contribution (coefficient times regressor), their sum and the adjusted
+series, and `plot_interventions()` with the model draws them.
+
+```{r, fig.height = 6}
+fit_q <- Arima(yq, order = c(1, 0, 0), xreg = Xq)
+eff <- intervention_effects(fit_q, Xq)
+round(attr(eff, "coefficients"), 2)
+eff[c(59:61, 76:79), ]
+plot_interventions(yq, Xq, fit_q, individual = TRUE)
+```
+
+The adjusted series is not a residual: the AR dynamics and the mean are
+still in it. It is the series with the estimated intervention effects
+removed.
+
 ### Automatic detection
 
 `detect_outliers()` applies the iterative procedure of Chen and Liu (1993),

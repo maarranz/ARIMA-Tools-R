@@ -47,7 +47,7 @@ test_that("manual dummies work with Arima, diagnostics and plot_outliers", {
   expect_equal(cd$estimate[cd$term == "LS2007Q2"], 5, tolerance = 0.15)
   expect_s3_class(plot_outliers(fit), "patchwork")
   expect_error(plot_outliers(forecast::Arima(y, order = c(1, 0, 0))), "no outlier")
-  expect_error(dynamic_forecast(fit), "not supported yet")
+  expect_error(dynamic_forecast(fit), "extend_interventions")
 })
 
 test_that("detect_outliers reproduces tso with a fixed order", {
@@ -257,13 +257,13 @@ test_that("v0.3.4: only names created by outlier_regressors() count as outliers"
   eff <- ggplot2::layer_data(p[[2]], 2)$y
   expect_equal(eff, as.numeric(X) * unname(f2$coef["AO2000Q1"]))
   tcu <- forecast::Arima(z, order = c(1, 0, 0), xreg = cbind(TCU = rnorm(120)))
-  expect_error(dynamic_forecast(tcu, 3), "future regressor values")
+  expect_error(dynamic_forecast(tcu, 3), "future values with `xreg =`")
   expect_error(dynamic_forecast(forecast::Arima(z, order = c(1, 0, 0), xreg = X), 3),
-               "outlier regressors")
+               "contains interventions")
   num <- outlier_regressors(as.numeric(z), positions = 51, types = "AO")
   expect_equal(colnames(num), "AO51")
   expect_error(dynamic_forecast(forecast::Arima(as.numeric(z), order = c(1, 0, 0),
-                                                xreg = num), 3), "outlier regressors")
+                                                xreg = num), 3), "contains interventions")
 })
 
 test_that("v0.3.4: types must have length 1 or one per date", {

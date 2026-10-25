@@ -3,7 +3,9 @@
 #' R port of the Python package ARIMA-Tools (ATSE, UC3M). Every function takes
 #' a model fitted with [forecast::Arima()], [forecast::auto.arima()] or
 #' [stats::arima()], except the functions that estimate models themselves
-#' ([order_search()], [recursive_estimation()], [auto_arima()]).
+#' ([order_search()], [recursive_estimation()], [auto_arima()]) and those that
+#' build intervention regressors ([outlier_regressors()],
+#' [extend_interventions()]).
 #'
 #' Part of the ATSE software suite, with ARIMA-Tools (Python), ARMA-Theory,
 #' ADL-Theory, Forecasting-Tools and ADL-Tools (forthcoming).
